@@ -61,7 +61,7 @@ export function Navbar() {
       <div className="container flex h-20 items-center justify-between max-w-7xl mx-auto px-4">
         <Link href="/" className="flex-shrink-0">
           <Image
-            src="/images/EternalBotanicNavbar.png"
+            src="/images/EternalBotanic.png"
             alt="Eternal Botanic"
             width={105}
             height={60}
