@@ -1,0 +1,25 @@
+# Node modules
+node_modules/
+**/node_modules/
+
+# Env files
+.env
+.env.local
+**/.env
+
+# Python
+__pycache__/
+**/__pycache__/
+
+# Build output
+dist/
+.next/
+
+
+next-env.d.ts
+*.tsbuildinfo
+backend/public/images/*
+frontend/public/images/*
+
+backend/public/images/
+frontend/public/images/
