@@ -63,8 +63,8 @@ export function Navbar() {
           <Image
             src="/images/EternalBotanic.png"
             alt="Eternal Botanic"
-            width={105}
-            height={60}
+            width={80}
+            height={50}
             priority
             className="object-contain"
           />
