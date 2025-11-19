@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import adminRoutes from "./routes/admin.routes";
 
 dotenv.config();
 const app = express();
@@ -41,6 +42,8 @@ app.use(
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
+
+app.use("/api/admin", adminRoutes);
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,

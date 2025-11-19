@@ -11,6 +11,16 @@ export interface IOrder extends Document {
   }[];
   total: number;
   status: "paid" | "processing" | "pending" | "failed";
+  shippingAddress?: {
+    line1: string;
+    line2?: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  };
+  customerEmail?: string;
+  customerName?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +43,16 @@ const OrderSchema = new Schema<IOrder>(
       enum: ["paid", "processing", "pending", "failed"],
       default: "paid",
     },
+    shippingAddress: {
+      line1: { type: String },
+      line2: { type: String },
+      city: { type: String },
+      state: { type: String },
+      postal_code: { type: String },
+      country: { type: String },
+    },
+    customerEmail: { type: String },
+    customerName: { type: String },
   },
   { _id: false, timestamps: true }
 );

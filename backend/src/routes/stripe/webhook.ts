@@ -100,7 +100,6 @@ router.post(
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      console.log("🎉 Checkout completed for session:", session.id);
 
       try {
         const lineItems = await stripe.checkout.sessions.listLineItems(
@@ -110,102 +109,83 @@ router.post(
 
         const userId = session.metadata?.userId || "guest";
 
-        const items = lineItems.data.map((item) => {
-          const quantity = item.quantity || 1;
-          const lineTotal = item.amount_total ? item.amount_total / 100 : 0;
-          const unitPrice = quantity ? lineTotal / quantity : lineTotal;
-
-          return {
-            productId: (item.price?.product as string) || "unknown",
-            name: item.description || "Unknown Product",
-            quantity,
-            price: unitPrice,
-          };
-        });
+        const items = lineItems.data.map((item) => ({
+          productId: (item.price?.product as string) || "unknown",
+          name: item.description || "Unknown Product",
+          quantity: item.quantity || 1,
+          price: item.amount_total ? item.amount_total / 100 : 0,
+        }));
 
         const total =
           session.amount_total && session.currency === "usd"
             ? session.amount_total / 100
             : 0;
 
-        const newOrder = await Order.create({
-          _id: session.id,
-          userId,
-          items,
-          total,
-          status: "paid",
-        });
-        console.log("✅ Order saved:", newOrder._id);
+        const shippingDetails = (session as any).shipping_details;
+        const shippingAddress = shippingDetails?.address
+          ? {
+              line1: shippingDetails.address.line1 || "",
+              line2: shippingDetails.address.line2 || "",
+              city: shippingDetails.address.city || "",
+              state: shippingDetails.address.state || "",
+              postal_code: shippingDetails.address.postal_code || "",
+              country: shippingDetails.address.country || "",
+            }
+          : undefined;
 
-        // Send customer receipt
-        const customerEmail =
-          session.customer_details?.email || "noemail@example.com";
-        console.log("📧 Attempting to send receipt to:", customerEmail);
-
-        if (customerEmail !== "noemail@example.com") {
-          try {
-            await sendReceiptEmail(
-              customerEmail,
-              "Your Eternal Botanic Order Receipt",
-              `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                  <h2 style="color: #d946ef;">Thank you for your order!</h2>
-                  <p>Your order has been confirmed and will be shipped soon.</p>
-                  
-                  <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <p><strong>Order ID:</strong> ${session.id}</p>
-                    <p><strong>Total:</strong> $${total.toFixed(2)}</p>
-                  </div>
-                  
-                  <h3>Order Details:</h3>
-                  <ul style="list-style: none; padding: 0;">
-                    ${items
-                      .map(
-                        (item) =>
-                          `<li style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
-                            ${item.name} × ${item.quantity} — $${(
-                            item.price * item.quantity
-                          ).toFixed(2)}
-                          </li>`
-                      )
-                      .join("")}
-                  </ul>
-                  
-                  <p style="margin-top: 30px;">We'll send you another email when your order ships.</p>
-                  
-                  <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-                  
-                  <p style="color: #6b7280; font-size: 14px;">
-                    If you have any questions, please contact us at 
-                    <a href="mailto:eternalbotanic@gmail.com" style="color: #d946ef;">eternalbotanic@gmail.com</a>
-                  </p>
-                </div>
-              `
-            );
-            console.log(
-              "✅ Customer receipt sent successfully to:",
-              customerEmail
-            );
-          } catch (emailError: any) {
-            console.error("❌ Customer email failed:", emailError.message);
-          }
-        } else {
-          console.log("⚠️ No valid customer email, skipping receipt");
-        }
-
-        // Admin notification
         try {
+          const newOrder = await Order.create({
+            _id: session.id,
+            userId,
+            items,
+            total,
+            status: "paid",
+            shippingAddress,
+            customerEmail: session.customer_details?.email || "",
+            customerName: session.customer_details?.name || "",
+          });
+
+          console.log("✅ Order saved:", newOrder._id);
+
+          const customerEmail =
+            session.customer_details?.email || "noemail@example.com";
+
+          console.log("📧 Attempting to send receipt to:", customerEmail);
+
+          await sendReceiptEmail(
+            customerEmail,
+            "Your Eternal Botanic Order Receipt",
+            `
+              <h2>Thank you for your order!</h2>
+              <p>Total: <strong>$${total.toFixed(2)}</strong></p>
+              <ul>
+                ${items
+                  .map(
+                    (item) =>
+                      `<li>${item.name} × ${item.quantity} — $${(
+                        item.price * item.quantity
+                      ).toFixed(2)}</li>`
+                  )
+                  .join("")}
+              </ul>
+              <p>We'll send another email when your items ship.</p>
+            `
+          );
+
+          // Admin notification
           await sendAdminNotification({
             customerEmail:
               session.customer_details?.email || "No email provided",
             customerName: session.customer_details?.name || "No name provided",
-            shippingAddress: (session as any).shipping_details?.address || null,
+            shippingAddress: shippingDetails?.address || null,
             items,
             total,
             orderId: session.id,
           });
-        } catch (emailError: any) {
-          console.error("❌ Admin email failed:", emailError.message);
+
+          console.log("✅ Order saved and emails sent");
+        } catch (err: any) {
+          console.error("❌ Failed to save order or send emails:", err);
         }
       } catch (err: any) {
         console.error("❌ Failed to process order:", err.message);
