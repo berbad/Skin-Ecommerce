@@ -14,7 +14,13 @@ const nextConfig: NextConfig = {
         hostname: "skin-ecommerce.onrender.com",
         pathname: "/images/**",
       },
+      {
+        protocol: "https",
+        hostname: "www.eternalbotanic.com",
+        pathname: "/images/**",
+      },
     ],
+    unoptimized: true,
   },
 
   reactStrictMode: true,
@@ -26,12 +32,16 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  //
+
   async rewrites() {
     return [
       {
         source: "/api/:path*",
         destination: "https://skin-ecommerce.onrender.com/api/:path*",
+      },
+      {
+        source: "/images/:path*",
+        destination: "https://skin-ecommerce.onrender.com/images/:path*",
       },
     ];
   },
