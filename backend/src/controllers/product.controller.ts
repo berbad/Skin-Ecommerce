@@ -46,10 +46,8 @@ class ProductController {
         howToUse,
       } = req.body;
 
-      // CHANGE: Use Cloudinary URL instead of local path
       let imagePath = "";
       if (req.file) {
-        // Cloudinary stores the URL in req.file.path
         imagePath = (req.file as any).path || "";
         console.log("📸 Cloudinary URL:", imagePath);
       }
@@ -64,7 +62,7 @@ class ProductController {
         ingredients,
         benefits,
         howToUse,
-        image: imagePath, // This is now a full Cloudinary URL
+        image: imagePath,
       });
 
       await newProduct.save();
@@ -108,7 +106,6 @@ class ProductController {
       product.benefits = benefits;
       product.howToUse = howToUse;
 
-      // CHANGE: Use Cloudinary URL
       if (req.file) {
         product.image = (req.file as any).path || "";
         console.log("📸 Updated Cloudinary URL:", product.image);
