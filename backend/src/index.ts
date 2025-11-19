@@ -29,6 +29,10 @@ app.use(
         return callback(null, true);
       }
 
+      if (origin.startsWith("http://localhost")) {
+        return callback(null, true);
+      }
+
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
@@ -65,9 +69,11 @@ app.use("/api/auth/register", authLimiter);
 const imagesPath = path.join(__dirname, "../public/images");
 if (!fs.existsSync(imagesPath)) {
   fs.mkdirSync(imagesPath, { recursive: true });
+  console.log("✅ Created images directory:", imagesPath);
+} else {
+  console.log("✅ Images directory exists:", imagesPath);
 }
 
-// Stripe Webhook route
 import webhookRoute from "./routes/stripe/webhook";
 app.use("/api/stripe/webhook", webhookRoute);
 
@@ -78,14 +84,18 @@ app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`, {
     origin: req.headers.origin,
     cookie: req.headers.cookie ? "present" : "missing",
-    credentials: req.headers.cookie
-      ? req.headers.cookie.substring(0, 50)
-      : "none",
   });
   next();
 });
 
-app.use("/images", express.static(path.join(__dirname, "../public/images")));
+app.use(
+  "/images",
+  (req, res, next) => {
+    console.log("📸 Image request:", req.path);
+    next();
+  },
+  express.static(path.join(__dirname, "../public/images"))
+);
 
 // API routes
 import productRoutes from "./routes/product.routes";
@@ -100,6 +110,14 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/stripe", stripeRoutes);
 
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error("Global error handler caught error:", err);
   res.status(500).json({ message: "Internal server error" });
@@ -108,10 +126,25 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 mongoose
   .connect(process.env.MONGODB_URI as string)
   .then(() => {
-    console.log("Connected to MongoDB");
+    console.log("✅ Connected to MongoDB");
+    console.log(
+      "🔐 JWT_SECRET:",
+      process.env.JWT_SECRET ? "Set" : "❌ MISSING"
+    );
+    console.log(
+      "💳 STRIPE_SECRET_KEY:",
+      process.env.STRIPE_SECRET_KEY ? "Set" : "❌ MISSING"
+    );
+    console.log(
+      "📧 SENDGRID_API_KEY:",
+      process.env.SENDGRID_API_KEY ? "Set" : "❌ MISSING"
+    );
+    console.log("📧 ADMIN_EMAIL:", process.env.ADMIN_EMAIL || "❌ MISSING");
+    console.log("🌐 CLIENT_URL:", process.env.CLIENT_URL || "❌ MISSING");
+
     app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   })
   .catch((err) => {
-    console.error("MongoDB connection failed:", err);
+    console.error("❌ MongoDB connection failed:", err);
     process.exit(1);
   });

@@ -33,10 +33,6 @@ const nextConfig: NextConfig = {
         source: "/api/:path*",
         destination: "https://skin-ecommerce.onrender.com/api/:path*",
       },
-      {
-        source: "/images/:path*",
-        destination: "https://skin-ecommerce.onrender.com/images/:path*",
-      },
     ];
   },
 };

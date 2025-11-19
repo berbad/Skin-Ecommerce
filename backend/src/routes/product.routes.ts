@@ -11,6 +11,7 @@ const router = express.Router();
 const imageDir = path.join(__dirname, "../../public/images");
 if (!fs.existsSync(imageDir)) {
   fs.mkdirSync(imageDir, { recursive: true });
+  console.log("✅ Created images directory:", imageDir);
 }
 
 const storage = multer.diskStorage({
@@ -27,6 +28,8 @@ const storage = multer.diskStorage({
 
     const baseName = path.basename(originalName, ext).replace(/\s/g, "");
     const uniqueName = `${Date.now()}-${baseName}${ext}`;
+    // logging
+    console.log("📸 Saving image as:", uniqueName);
     cb(null, uniqueName);
   },
 });
