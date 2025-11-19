@@ -11,6 +11,8 @@ import adminRoutes from "./routes/admin.routes";
 
 dotenv.config();
 const app = express();
+app.set("trust proxy", 1); // <<< FIXED
+
 const PORT = process.env.PORT || 5000;
 
 app.use(
@@ -55,12 +57,12 @@ const limiter = rateLimit({
   max: 100,
   message: "Too many request, please try again later",
 });
-
 app.use("/api/", limiter);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  skipSuccessfulRequests: true, // <<< FIXED
   message: "Too many login attempts, please try again later",
 });
 
@@ -98,7 +100,7 @@ app.use(
   express.static(path.join(__dirname, "../public/images"))
 );
 
-// API routes
+// API Routes
 import productRoutes from "./routes/product.routes";
 import authRoutes from "./routes/auth.routes";
 import orderRoutes from "./routes/order.routes";
