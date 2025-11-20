@@ -15,6 +15,7 @@ if (!process.env.JWT_SECRET) {
   throw new Error("❌ JWT_SECRET is not set in .env");
 }
 const JWT_SECRET = process.env.JWT_SECRET;
+const isProduction = process.env.NODE_ENV === "production";
 
 // Register
 router.post(
@@ -110,14 +111,15 @@ router.post(
           role: user.role,
           name: user.name,
         },
-        JWT_SECRET,
+        JWT_SECRET as string,
         { expiresIn: "7d" }
       );
 
+      // IMPORTANT: cross-site cookie (Vercel frontend → Render backend)
       res.cookie("token", token, {
         httpOnly: true,
-        secure: true,
-        sameSite: "lax",
+        secure: isProduction, // true in production (HTTPS)
+        sameSite: isProduction ? "none" : "lax", // must be "none" for cross-site
         path: "/",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
@@ -154,7 +156,12 @@ router.post(
         await User.findByIdAndUpdate(req.user.id, { cart });
       }
 
-      res.clearCookie("token");
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        path: "/",
+      });
 
       res
         .status(200)
@@ -166,7 +173,6 @@ router.post(
   }
 );
 
-// Profile routes
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
 
