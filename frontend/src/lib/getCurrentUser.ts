@@ -1,13 +1,11 @@
-export async function getCurrentUser() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+import { API_URL } from "./config";
 
-  const res = await fetch(`${API_URL}/api/auth/profile`, {
-    credentials: "include",
-  });
+export async function getCurrentUser() {
   try {
     const res = await fetch(`${API_URL}/api/auth/profile`, {
       credentials: "include",
     });
+
     if (!res.ok) return null;
 
     const data = await res.json();
