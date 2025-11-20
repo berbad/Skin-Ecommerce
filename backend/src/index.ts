@@ -59,15 +59,13 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  skipSuccessfulRequests: true,
-  message: "Too many login attempts, please try again later",
-});
-
-app.use("/api/auth/login", authLimiter);
-app.use("/api/auth/register", authLimiter);
+// const authLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 5,
+//   message: "Too many login attempts, please try again later",
+// });
+// app.use("/api/auth/login", authLimiter);
+// app.use("/api/auth/register", authLimiter);
 
 const imagesPath = path.join(__dirname, "../public/images");
 if (!fs.existsSync(imagesPath)) {
@@ -100,7 +98,7 @@ app.use(
   express.static(path.join(__dirname, "../public/images"))
 );
 
-// API Routes
+// API routes
 import productRoutes from "./routes/product.routes";
 import authRoutes from "./routes/auth.routes";
 import orderRoutes from "./routes/order.routes";
