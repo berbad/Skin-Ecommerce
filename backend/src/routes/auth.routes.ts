@@ -16,12 +16,113 @@ if (!process.env.JWT_SECRET) {
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 
-const COOKIE_OPTIONS = {
-  httpOnly: true as const,
-  secure: true as const,
-  sameSite: "none" as const,
+const getCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite:
+    process.env.NODE_ENV === "production"
+      ? ("none" as const)
+      : ("lax" as const),
   path: "/",
-};
+  domain:
+    process.env.NODE_ENV === "production" ? ".eternalbotanic.com" : undefined,
+});
+
+// Login
+router.post(
+  "/login",
+  body("email").isEmail().normalizeEmail(),
+  body("password").notEmpty().withMessage("Password is required"),
+  async (req: Request, res: Response): Promise<void> => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        message: errors.array()[0].msg,
+      });
+      return;
+    }
+
+    try {
+      const { email, password } = req.body;
+
+      const user = await User.findOne({ email });
+      const isMatch = user && (await bcrypt.compare(password, user.password));
+      if (!user || !isMatch) {
+        res
+          .status(401)
+          .json({ success: false, message: "Invalid credentials" });
+        return;
+      }
+
+      const token = jwt.sign(
+        {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+          name: user.name,
+        },
+        JWT_SECRET as string,
+        { expiresIn: "7d" }
+      );
+
+      res.cookie("token", token, {
+        ...getCookieOptions(),
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+
+      console.log("🍪 Cookie set for user:", user.email);
+
+      res.status(200).json({
+        success: true,
+        message: "Logged in successfully",
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          cart: user.cart,
+        },
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error logging in",
+      });
+    }
+  }
+);
+
+// Logout
+router.post(
+  "/logout",
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const { cart } = req.body;
+
+      if (req.user?.id && cart) {
+        await User.findByIdAndUpdate(req.user.id, { cart });
+        console.log("💾 Cart saved for user:", req.user.id);
+      }
+
+      res.clearCookie("token", getCookieOptions());
+
+      console.log("🍪 Cookie cleared for user:", req.user?.email || "guest");
+
+      res.status(200).json({
+        success: true,
+        message: "Logged out successfully",
+      });
+    } catch (err) {
+      console.error("Logout error:", err);
+      res.status(500).json({
+        success: false,
+        message: "Logout failed",
+      });
+    }
+  }
+);
 
 // Register
 router.post(
@@ -37,7 +138,6 @@ router.post(
     .matches(/[0-9]/)
     .withMessage("Password must contain at least one number"),
   body("name").trim().isLength({ min: 1, max: 100 }),
-
   async (req: Request, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -82,95 +182,6 @@ router.post(
   }
 );
 
-// Login
-router.post(
-  "/login",
-  body("email").isEmail().normalizeEmail(),
-  body("password").notEmpty().withMessage("Password is required"),
-
-  async (req: Request, res: Response): Promise<void> => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({
-        success: false,
-        message: errors.array()[0].msg,
-      });
-      return;
-    }
-
-    try {
-      const { email, password } = req.body;
-
-      const user = await User.findOne({ email });
-      const isMatch = user && (await bcrypt.compare(password, user.password));
-      if (!user || !isMatch) {
-        res
-          .status(401)
-          .json({ success: false, message: "Invalid credentials" });
-        return;
-      }
-
-      const token = jwt.sign(
-        {
-          id: user._id,
-          email: user.email,
-          role: user.role,
-          name: user.name,
-        },
-        JWT_SECRET as string,
-        { expiresIn: "7d" }
-      );
-
-      res.cookie("token", token, {
-        ...COOKIE_OPTIONS,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      res.status(200).json({
-        success: true,
-        message: "Logged in successfully",
-        user: {
-          id: user._id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          cart: user.cart,
-        },
-      });
-    } catch (error) {
-      console.error("Login error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Error logging in",
-      });
-    }
-  }
-);
-
-// Logout
-router.post(
-  "/logout",
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const { cart } = req.body;
-
-      if (req.user?.id && cart) {
-        await User.findByIdAndUpdate(req.user.id, { cart });
-      }
-
-      res.clearCookie("token", COOKIE_OPTIONS);
-
-      res
-        .status(200)
-        .json({ success: true, message: "Logged out and cart saved" });
-    } catch (err) {
-      console.error("Logout error:", err);
-      res.status(500).json({ success: false, message: "Logout failed" });
-    }
-  }
-);
-
-// Profile routes
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
 

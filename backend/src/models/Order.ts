@@ -21,6 +21,12 @@ export interface IOrder extends Document {
   };
   customerEmail?: string;
   customerName?: string;
+  trackingNumber?: string;
+  statusHistory: {
+    status: string;
+    timestamp: Date;
+    note?: string;
+  }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,7 +34,6 @@ export interface IOrder extends Document {
 const OrderSchema = new Schema<IOrder>(
   {
     _id: { type: String, required: true },
-    userId: { type: String, required: true },
     items: [
       {
         productId: { type: String, required: true },
@@ -53,6 +58,17 @@ const OrderSchema = new Schema<IOrder>(
     },
     customerEmail: { type: String },
     customerName: { type: String },
+    trackingNumber: { type: String },
+    statusHistory: {
+      type: [
+        {
+          status: { type: String, required: true },
+          timestamp: { type: Date, default: Date.now },
+          note: { type: String },
+        },
+      ],
+      default: [],
+    },
   },
   { _id: false, timestamps: true }
 );

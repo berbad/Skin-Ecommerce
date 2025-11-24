@@ -5,12 +5,23 @@ export const logout = async () => {
   try {
     const cart = getCart();
 
-    await axios.post("/auth/logout", { cart });
+    const response = await axios.post("/auth/logout", { cart });
+
+    console.log("✅ Logout response:", response.data);
 
     clearCart();
 
-    window.location.replace("/login");
-  } catch (err) {
-    console.error("Logout failed", err);
+    localStorage.removeItem("user");
+    sessionStorage.clear();
+
+    window.location.href = "/login";
+  } catch (err: any) {
+    console.error("❌ Logout failed:", err);
+
+    clearCart();
+    localStorage.clear();
+    sessionStorage.clear();
+
+    window.location.href = "/login";
   }
 };

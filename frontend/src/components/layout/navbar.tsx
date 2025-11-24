@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ShoppingCart, User, Menu, LogOut } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,6 @@ import { getCurrentUser } from "@/lib/getCurrentUser";
 import { logout } from "@/lib/logout";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -22,16 +21,19 @@ import {
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<{
     name: string;
     email: string;
     isAdmin?: boolean;
   } | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    getCurrentUser()
-      .then((userData) => {
+    const fetchUser = async () => {
+      try {
+        const userData = await getCurrentUser();
         if (userData) {
           setUser({
             ...userData,
@@ -40,9 +42,14 @@ export function Navbar() {
         } else {
           setUser(null);
         }
-      })
-      .catch(() => setUser(null));
-  }, []);
+      } catch (err) {
+        console.error("Error fetching user:", err);
+        setUser(null);
+      }
+    };
+
+    fetchUser();
+  }, [pathname]);
 
   const routes = [
     { href: "/", label: "Home", active: pathname === "/" },
@@ -53,7 +60,14 @@ export function Navbar() {
   ];
 
   const handleLogout = async () => {
-    await logout();
+    if (loggingOut) return;
+
+    try {
+      setLoggingOut(true);
+      await logout();
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
   };
 
   return (
@@ -121,9 +135,10 @@ export function Navbar() {
                   )}
                   <DropdownMenuItem
                     onClick={handleLogout}
+                    disabled={loggingOut}
                     className="cursor-pointer text-red-600"
                   >
-                    Logout
+                    {loggingOut ? "Logging out..." : "Logout"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -200,10 +215,11 @@ export function Navbar() {
                         handleLogout();
                         setIsOpen(false);
                       }}
-                      className="flex items-center py-2 text-sm font-medium text-red-600 hover:underline"
+                      disabled={loggingOut}
+                      className="flex items-center py-2 text-sm font-medium text-red-600 hover:underline disabled:opacity-50"
                     >
                       <LogOut className="mr-2 h-5 w-5" />
-                      Logout
+                      {loggingOut ? "Logging out..." : "Logout"}
                     </button>
                   </>
                 ) : (

@@ -80,7 +80,6 @@ export default function CartPage() {
       return;
     }
 
-    // Redirect
     window.location.href = data.url;
   };
 

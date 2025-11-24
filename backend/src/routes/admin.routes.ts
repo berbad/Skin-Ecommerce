@@ -5,7 +5,6 @@ import Order from "../models/Order";
 
 const router = express.Router();
 
-// Get all orders (admin only)
 router.get("/orders", authMiddleware, isAdminMiddleware, async (req, res) => {
   try {
     const orders = await Order.find({}).sort({ createdAt: -1 }).limit(100);

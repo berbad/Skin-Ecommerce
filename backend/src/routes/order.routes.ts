@@ -12,27 +12,31 @@ interface AuthedRequest extends Request {
   };
 }
 
-router.get("/", authMiddleware, async (req: AuthedRequest, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    const orders = await Order.find({ userId }).sort({ createdAt: -1 });
+router.get(
+  "/",
+  authMiddleware,
+  async (req: AuthedRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      const orders = await Order.find({ userId }).sort({ createdAt: -1 });
 
-    res.status(200).json({
-      success: true,
-      message: "Orders retrieved successfully",
-      orders,
-    });
-  } catch (error) {
-    console.error("Internal error:", error);
-    res.status(500).json({ success: false, message: "Something went wrong" });
+      res.status(200).json({
+        success: true,
+        message: "Orders retrieved successfully",
+        orders,
+      });
+    } catch (error) {
+      console.error("Internal error:", error);
+      res.status(500).json({ success: false, message: "Something went wrong" });
+    }
   }
-});
+);
 
 // Get a single order by ID
 router.get(
   "/:id",
   authMiddleware,
-  async (req: AuthedRequest, res: Response) => {
+  async (req: AuthedRequest, res: Response): Promise<void> => {
     try {
       const orderId = req.params.id;
       const order = await Order.findById(orderId);
@@ -55,48 +59,61 @@ router.get(
 );
 
 // Create a new order and update product stock
-router.post("/", authMiddleware, async (req: AuthedRequest, res: Response) => {
-  try {
-    const { items } = req.body;
+router.post(
+  "/",
+  authMiddleware,
+  async (req: AuthedRequest, res: Response): Promise<void> => {
+    try {
+      const { items } = req.body;
 
-    const total = items.reduce(
-      (sum: number, item: any) => sum + item.price * item.quantity,
-      0
-    );
+      const total = items.reduce(
+        (sum: number, item: any) => sum + item.price * item.quantity,
+        0
+      );
 
-    // Update product stock
-    for (const item of items) {
-      const product = await Product.findById(item.productId);
-      if (product) {
-        product.stock -= item.quantity;
-        if (product.stock < 0) product.stock = 0;
-        await product.save();
+      for (const item of items) {
+        const result = await Product.findOneAndUpdate(
+          {
+            _id: item.productId,
+            stock: { $gte: item.quantity }, // only update if enough stock
+          },
+          { $inc: { stock: -item.quantity } },
+          { new: true }
+        );
+
+        if (!result) {
+          res.status(400).json({
+            success: false,
+            message: `Insufficient stock for product ${item.productId}`,
+          });
+          return;
+        }
       }
+
+      const newOrder = await Order.create({
+        userId: req.user?.id,
+        items,
+        total,
+        status: "processing",
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "Order created successfully",
+        order: newOrder,
+      });
+    } catch (error) {
+      console.error("Internal error:", error);
+      res.status(500).json({ success: false, message: "Something went wrong" });
     }
-
-    const newOrder = await Order.create({
-      userId: req.user?.id,
-      items,
-      total,
-      status: "processing",
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Order created successfully",
-      order: newOrder,
-    });
-  } catch (error) {
-    console.error("Internal error:", error);
-    res.status(500).json({ success: false, message: "Something went wrong" });
   }
-});
+);
 
 // Update an order's status
 router.patch(
   "/:id/status",
   authMiddleware,
-  async (req: AuthedRequest, res: Response) => {
+  async (req: AuthedRequest, res: Response): Promise<void> => {
     try {
       const orderId = req.params.id;
       const { status } = req.body;

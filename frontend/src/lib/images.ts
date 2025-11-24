@@ -5,7 +5,8 @@ export const normalizeImageSrc = (img: string): string => {
     return img;
   }
 
-  const API_URL = "https://skin-ecommerce.onrender.com";
+  const API_URL =
+    process.env.NEXT_PUBLIC_API_URL || "https://skin-ecommerce.onrender.com";
 
   if (img.startsWith("/images/")) {
     return `${API_URL}${img}`;
