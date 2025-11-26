@@ -18,27 +18,29 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: (origin, callback) => {
+      console.log("Request from origin:", origin);
+
       if (!origin) return callback(null, true);
 
-      if (
-        origin === "https://eternalbotanic.com" ||
-        origin === "https://www.eternalbotanic.com"
-      ) {
+      const allowedOrigins = [
+        "https://eternalbotanic.com",
+        "https://www.eternalbotanic.com",
+        "http://localhost:3000",
+        "http://localhost:3001",
+      ];
+
+      if (allowedOrigins.includes(origin)) {
+        console.log("CORS allowed for:", origin);
         return callback(null, true);
       }
 
-      if (origin.startsWith("https://skin-ecommerce.onrender.com")) {
-        return callback(null, true);
-      }
-
-      if (origin.startsWith("http://localhost")) {
-        return callback(null, true);
-      }
-
-      console.warn("⚠️ CORS blocked origin:", origin);
+      console.warn("CORS blocked origin:", origin);
       return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Set-Cookie"],
   })
 );
 
@@ -70,9 +72,9 @@ app.use("/api/", limiter);
 const imagesPath = path.join(__dirname, "../public/images");
 if (!fs.existsSync(imagesPath)) {
   fs.mkdirSync(imagesPath, { recursive: true });
-  console.log("✅ Created images directory:", imagesPath);
+  console.log("Created images directory:", imagesPath);
 } else {
-  console.log("✅ Images directory exists:", imagesPath);
+  console.log("Images directory exists:", imagesPath);
 }
 
 import webhookRoute from "./routes/stripe/webhook";
@@ -127,25 +129,22 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 mongoose
   .connect(process.env.MONGODB_URI as string)
   .then(() => {
-    console.log("✅ Connected to MongoDB");
-    console.log(
-      "🔐 JWT_SECRET:",
-      process.env.JWT_SECRET ? "Set" : "❌ MISSING"
-    );
+    console.log("Connected to MongoDB");
+    console.log("JWT_SECRET:", process.env.JWT_SECRET ? "Set" : "MISSING");
     console.log(
       "💳 STRIPE_SECRET_KEY:",
-      process.env.STRIPE_SECRET_KEY ? "Set" : "❌ MISSING"
+      process.env.STRIPE_SECRET_KEY ? "Set" : "MISSING"
     );
     console.log(
       "📧 SENDGRID_API_KEY:",
-      process.env.SENDGRID_API_KEY ? "Set" : "❌ MISSING"
+      process.env.SENDGRID_API_KEY ? "Set" : "MISSING"
     );
-    console.log("📧 ADMIN_EMAIL:", process.env.ADMIN_EMAIL || "❌ MISSING");
-    console.log("🌐 CLIENT_URL:", process.env.CLIENT_URL || "❌ MISSING");
+    console.log("📧 ADMIN_EMAIL:", process.env.ADMIN_EMAIL || "MISSING");
+    console.log("🌐 CLIENT_URL:", process.env.CLIENT_URL || "MISSING");
 
-    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection failed:", err);
+    console.error("MongoDB connection failed:", err);
     process.exit(1);
   });

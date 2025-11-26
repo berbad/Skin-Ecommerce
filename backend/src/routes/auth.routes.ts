@@ -16,17 +16,16 @@ if (!process.env.JWT_SECRET) {
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 
-const getCookieOptions = () => ({
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite:
-    process.env.NODE_ENV === "production"
-      ? ("none" as const)
-      : ("lax" as const),
-  path: "/",
-  domain:
-    process.env.NODE_ENV === "production" ? ".eternalbotanic.com" : undefined,
-});
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production";
+
+  return {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none" as const,
+    path: "/",
+  };
+};
 
 // Login
 router.post(
@@ -48,10 +47,12 @@ router.post(
 
       const user = await User.findOne({ email });
       const isMatch = user && (await bcrypt.compare(password, user.password));
+
       if (!user || !isMatch) {
-        res
-          .status(401)
-          .json({ success: false, message: "Invalid credentials" });
+        res.status(401).json({
+          success: false,
+          message: "Invalid credentials",
+        });
         return;
       }
 
@@ -66,12 +67,14 @@ router.post(
         { expiresIn: "7d" }
       );
 
+      const cookieOptions = getCookieOptions();
       res.cookie("token", token, {
-        ...getCookieOptions(),
+        ...cookieOptions,
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      console.log("🍪 Cookie set for user:", user.email);
+      console.log("🍪 Cookie set with options:", cookieOptions);
+      console.log("🍪 Cookie value:", token.substring(0, 20) + "...");
 
       res.status(200).json({
         success: true,
@@ -103,12 +106,14 @@ router.post(
 
       if (req.user?.id && cart) {
         await User.findByIdAndUpdate(req.user.id, { cart });
-        console.log("💾 Cart saved for user:", req.user.id);
+        console.log("Cart saved for user:", req.user.id);
       }
 
-      res.clearCookie("token", getCookieOptions());
+      const cookieOptions = getCookieOptions();
+      res.clearCookie("token", cookieOptions);
 
-      console.log("🍪 Cookie cleared for user:", req.user?.email || "guest");
+      console.log("Cookie cleared with options:", cookieOptions);
+      console.log("User logged out:", req.user?.email || "guest");
 
       res.status(200).json({
         success: true,

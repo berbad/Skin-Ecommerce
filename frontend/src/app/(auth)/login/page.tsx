@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +18,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { API_URL } from "@/lib/config";
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -48,7 +51,7 @@ export default function LoginPage() {
         return;
       }
 
-      window.location.href = "/";
+      router.push("/");
     } catch (err) {
       setError("Login failed. Please check your credentials and try again.");
     } finally {
