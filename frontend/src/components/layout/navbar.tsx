@@ -64,9 +64,14 @@ export function Navbar() {
 
     try {
       setLoggingOut(true);
+      setUser(null);
       await logout();
     } catch (err) {
       console.error("Logout error:", err);
+      setUser(null);
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.href = "/login";
     }
   };
 
@@ -212,8 +217,8 @@ export function Navbar() {
                     )}
                     <button
                       onClick={() => {
-                        handleLogout();
                         setIsOpen(false);
+                        handleLogout();
                       }}
                       disabled={loggingOut}
                       className="flex items-center py-2 text-sm font-medium text-red-600 hover:underline disabled:opacity-50"

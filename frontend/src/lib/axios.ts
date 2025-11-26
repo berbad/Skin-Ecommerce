@@ -13,7 +13,11 @@ instance.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
 
-    if (status === 401) {
+    if (status === 401 || status === 403) {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      sessionStorage.clear();
+
       if (
         typeof window !== "undefined" &&
         !window.location.pathname.includes("/login")

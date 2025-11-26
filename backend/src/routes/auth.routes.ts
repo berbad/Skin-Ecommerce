@@ -12,7 +12,7 @@ import { body, validationResult } from "express-validator";
 const router = express.Router();
 
 if (!process.env.JWT_SECRET) {
-  throw new Error("❌ JWT_SECRET is not set in .env");
+  throw new Error("JWT_SECRET is not set in .env");
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -73,8 +73,8 @@ router.post(
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
-      console.log("🍪 Cookie set with options:", cookieOptions);
-      console.log("🍪 Cookie value:", token.substring(0, 20) + "...");
+      console.log("Cookie set with options:", cookieOptions);
+      console.log("Cookie value:", token.substring(0, 20) + "...");
 
       res.status(200).json({
         success: true,
@@ -109,10 +109,18 @@ router.post(
         console.log("Cart saved for user:", req.user.id);
       }
 
-      const cookieOptions = getCookieOptions();
+      const cookieOptions = {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none" as const,
+        path: "/",
+      };
+
       res.clearCookie("token", cookieOptions);
 
-      console.log("Cookie cleared with options:", cookieOptions);
+      res.clearCookie("token");
+
+      console.log("Cookie cleared");
       console.log("User logged out:", req.user?.email || "guest");
 
       res.status(200).json({
@@ -121,9 +129,18 @@ router.post(
       });
     } catch (err) {
       console.error("Logout error:", err);
-      res.status(500).json({
-        success: false,
-        message: "Logout failed",
+
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none" as const,
+        path: "/",
+      });
+      res.clearCookie("token");
+
+      res.status(200).json({
+        success: true,
+        message: "Logged out",
       });
     }
   }
