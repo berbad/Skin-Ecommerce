@@ -15,13 +15,15 @@ export const authMiddleware = (
   res: Response,
   next: NextFunction
 ): void => {
-  console.log("🔐 Auth Middleware - Path:", req.path);
-  console.log("🔐 Headers:", {
+  console.log(" Auth Middleware - Path:", req.path);
+  console.log("Method:", req.method);
+  console.log("Headers:", {
     origin: req.headers.origin,
     cookie: req.headers.cookie ? "present" : "missing",
     authorization: req.headers.authorization ? "present" : "missing",
+    contentType: req.headers["content-type"],
   });
-  console.log("🍪 Parsed cookies:", req.cookies);
+  console.log("Parsed cookies:", req.cookies);
 
   let token = req.cookies?.token;
 
@@ -31,16 +33,23 @@ export const authMiddleware = (
       token = authHeader.substring(7);
       console.log("Using token from Authorization header");
     }
+  } else {
+    console.log("Using token from cookie");
   }
 
   if (!token) {
-    console.error("No token found");
+    console.error(" No token found in cookies or Authorization header");
     res.status(401).json({
       success: false,
       message: "Unauthorized: No token provided",
       debug: {
         hasCookieToken: !!req.cookies?.token,
         hasAuthHeader: !!req.headers.authorization,
+        cookies: req.cookies,
+        headers: {
+          cookie: req.headers.cookie,
+          authorization: req.headers.authorization,
+        },
       },
     });
     return;
@@ -68,6 +77,7 @@ export const authMiddleware = (
     res.status(403).json({
       success: false,
       message: "Invalid or expired token",
+      error: err.message,
     });
   }
 };

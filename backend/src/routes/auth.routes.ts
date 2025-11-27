@@ -204,6 +204,29 @@ router.post(
   }
 );
 
+// Auth endpoint test
+router.get(
+  "/test-auth",
+  authMiddleware,
+  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    res.status(200).json({
+      success: true,
+      message: "Authentication working!",
+      user: {
+        id: req.user?.id,
+        email: req.user?.email,
+        role: req.user?.role,
+        name: req.user?.name,
+      },
+      cookies: req.cookies,
+      headers: {
+        cookie: req.headers.cookie,
+        origin: req.headers.origin,
+      },
+    });
+  }
+);
+
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
 

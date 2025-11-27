@@ -20,7 +20,10 @@ app.use(
     origin: (origin, callback) => {
       console.log("Request from origin:", origin);
 
-      if (!origin) return callback(null, true);
+      if (!origin) {
+        console.log("CORS: Allowing request with no origin");
+        return callback(null, true);
+      }
 
       const allowedOrigins = [
         "https://eternalbotanic.com",
@@ -39,8 +42,15 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Cookie",
+    ],
     exposedHeaders: ["Set-Cookie"],
+    preflightContinue: false,
+    optionsSuccessStatus: 204,
   })
 );
 
@@ -94,7 +104,7 @@ app.use((req, res, next) => {
 app.use(
   "/images",
   (req, res, next) => {
-    console.log("📸 Image request:", req.path);
+    console.log("Image request:", req.path);
     next();
   },
   express.static(path.join(__dirname, "../public/images"))
@@ -136,11 +146,11 @@ mongoose
       process.env.STRIPE_SECRET_KEY ? "Set" : "MISSING"
     );
     console.log(
-      "📧 SENDGRID_API_KEY:",
+      "SENDGRID_API_KEY:",
       process.env.SENDGRID_API_KEY ? "Set" : "MISSING"
     );
-    console.log("📧 ADMIN_EMAIL:", process.env.ADMIN_EMAIL || "MISSING");
-    console.log("🌐 CLIENT_URL:", process.env.CLIENT_URL || "MISSING");
+    console.log("ADMIN_EMAIL:", process.env.ADMIN_EMAIL || "MISSING");
+    console.log("CLIENT_URL:", process.env.CLIENT_URL || "MISSING");
 
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
