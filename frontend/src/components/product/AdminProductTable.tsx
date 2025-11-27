@@ -133,20 +133,26 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
         formData.append("image", form.image);
       }
 
+      const config = {
+        headers: {},
+      };
+
       if (editId) {
-        await axios.put(`/products/${editId}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await axios.put(`/products/${editId}`, formData, config);
       } else {
-        await axios.post("/products", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await axios.post("/products", formData, config);
       }
 
       handleClose();
       loadProducts();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Save failed", err);
+
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        alert("Session expired. Please log in again.");
+      } else {
+        alert("Failed to save product. Please try again.");
+      }
     } finally {
       setSaving(false);
     }
@@ -410,7 +416,7 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
                 Cancel
               </MuiButton>
               <MuiButton type="submit" variant="contained" disabled={saving}>
-                {editId ? "Update" : "Create"}
+                {saving ? "Saving..." : editId ? "Update" : "Create"}
               </MuiButton>
             </Box>
           </DialogContent>
