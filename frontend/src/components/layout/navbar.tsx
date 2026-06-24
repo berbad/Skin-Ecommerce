@@ -76,7 +76,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="border-b bg-background">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container flex h-20 items-center justify-between max-w-7xl mx-auto px-4">
         <Link href="/" className="flex-shrink-0">
           <Image
@@ -95,8 +95,8 @@ export function Navbar() {
               key={route.href}
               href={route.href}
               className={cn(
-                "text-sm font-medium transition-colors hover:text-pink-600",
-                route.active ? "text-pink-600" : "text-muted-foreground"
+                "text-sm font-medium transition-colors hover:text-brand",
+                route.active ? "text-brand" : "text-muted-foreground"
               )}
             >
               {route.label}
@@ -109,7 +109,7 @@ export function Navbar() {
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button className="rounded-full bg-pink-600 text-white h-8 w-8 p-0 font-bold">
+                  <Button className="rounded-full bg-brand text-brand-foreground h-8 w-8 p-0 font-bold">
                     {user?.name?.charAt(0)?.toUpperCase() ?? "?"}
                   </Button>
                 </DropdownMenuTrigger>
@@ -176,8 +176,8 @@ export function Navbar() {
                   key={route.href}
                   href={route.href}
                   className={cn(
-                    "text-sm font-medium transition-colors hover:text-pink-600",
-                    route.active ? "text-pink-600" : "text-muted-foreground"
+                    "text-sm font-medium transition-colors hover:text-brand",
+                    route.active ? "text-brand" : "text-muted-foreground"
                   )}
                   onClick={() => setIsOpen(false)}
                 >
@@ -193,7 +193,7 @@ export function Navbar() {
                     </span>
                     <Link
                       href="/account"
-                      className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-pink-600"
+                      className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-brand"
                       onClick={() => setIsOpen(false)}
                     >
                       <User className="mr-2 h-5 w-5" />
@@ -201,7 +201,7 @@ export function Navbar() {
                     </Link>
                     <Link
                       href="/orders"
-                      className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-pink-600"
+                      className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-brand"
                       onClick={() => setIsOpen(false)}
                     >
                       🧾 My Orders
@@ -209,7 +209,7 @@ export function Navbar() {
                     {user?.isAdmin && (
                       <Link
                         href="/admin"
-                        className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-pink-600"
+                        className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-brand"
                         onClick={() => setIsOpen(false)}
                       >
                         Admin Dashboard
@@ -230,7 +230,7 @@ export function Navbar() {
                 ) : (
                   <Link
                     href="/login"
-                    className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-pink-600"
+                    className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-brand"
                     onClick={() => setIsOpen(false)}
                   >
                     <User className="mr-2 h-5 w-5" />
@@ -239,7 +239,7 @@ export function Navbar() {
                 )}
                 <Link
                   href="/cart"
-                  className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-pink-600 relative"
+                  className="flex items-center py-2 text-sm font-medium text-muted-foreground hover:text-brand relative"
                   onClick={() => setIsOpen(false)}
                 >
                   <ShoppingCart className="mr-2 h-5 w-5" />
