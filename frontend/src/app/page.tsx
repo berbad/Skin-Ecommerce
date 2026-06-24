@@ -15,10 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import { HeroSection } from "@/components/home/HeroSection";
 import { ConcernChips } from "@/components/home/ConcernChips";
-import { PressStrip } from "@/components/home/PressStrip";
 import { ShopByCategory } from "@/components/home/ShopByCategory";
 import { IngredientSpotlight } from "@/components/home/IngredientSpotlight";
-import { Testimonials } from "@/components/home/Testimonials";
 import { ScienceStrip } from "@/components/home/ScienceStrip";
 import { ProductCard } from "@/components/product/ProductCard";
 import { addToCart, type Product } from "@/components/product/product";
@@ -51,7 +49,6 @@ export default function Home() {
   return (
     <div className="max-w-7xl mx-auto px-4">
       <HeroSection />
-      <PressStrip />
       <ConcernChips />
       <ShopByCategory />
 
@@ -102,7 +99,6 @@ export default function Home() {
       </section>
 
       <IngredientSpotlight />
-      <Testimonials />
       <ScienceStrip />
 
       <AnimatePresence>

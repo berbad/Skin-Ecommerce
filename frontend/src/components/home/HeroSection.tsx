@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Star, Leaf, Sparkles } from "lucide-react";
+import { ShieldCheck, Leaf, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const TRUST = [
-  { icon: Star, label: "4.8 · 12,000+ reviews" },
+  { icon: ShieldCheck, label: "30-day money-back guarantee" },
   { icon: Sparkles, label: "Fragrance-free" },
   { icon: Leaf, label: "Cruelty-free & vegan" },
 ];
