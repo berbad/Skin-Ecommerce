@@ -91,7 +91,7 @@ export function Navbar() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="bg-foreground text-background">
         <p className="mx-auto max-w-7xl px-4 py-2 text-center text-xs tracking-wide">
-          Free shipping over $50 · 30-day results guarantee
+          Complete ingredient list on every product — nothing hidden
         </p>
       </div>
 

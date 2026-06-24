@@ -1,20 +1,21 @@
-import { FlaskConical, Eye, ShieldCheck } from "lucide-react";
+import { ListChecks, Leaf, ShieldCheck } from "lucide-react";
 
+// Every claim here is verifiable from the actual product catalog.
 const PILLARS = [
   {
-    icon: FlaskConical,
-    title: "Clinically-studied actives",
-    body: "Every formula is built around ingredients with published, peer-reviewed evidence.",
+    icon: ListChecks,
+    title: "Full ingredient transparency",
+    body: "Every formula publishes its complete INCI list in full — no hidden or undisclosed actives.",
   },
   {
-    icon: Eye,
-    title: "Full transparency",
-    body: "See every ingredient, its concentration, and why it's there — no proprietary blends.",
+    icon: Leaf,
+    title: "Marine & botanical actives",
+    body: "Built around ingredients like bio-fermented red marine algae, ginseng, green tea, and Kakadu plum.",
   },
   {
     icon: ShieldCheck,
-    title: "30-day results guarantee",
-    body: "If your skin doesn't respond, return it for a full refund. No questions.",
+    title: "Made for sensitive skin",
+    body: "Formulas are designed to calm redness and support stressed, dehydrated, or reactive skin.",
   },
 ];
 

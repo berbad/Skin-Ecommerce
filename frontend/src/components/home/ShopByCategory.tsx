@@ -1,10 +1,12 @@
 import Link from "next/link";
 
+// Categories and query values match the real product catalog.
 const CATEGORIES = [
-  { name: "Serums", blurb: "Targeted actives", query: "Serum" },
-  { name: "Cleansers", blurb: "Gentle, balanced", query: "Cleanser and Toner" },
-  { name: "Moisturizers", blurb: "Barrier support", query: "Moisturizer" },
-  { name: "SPF", blurb: "Daily protection", query: "SPF" },
+  { name: "Serum", blurb: "4D hyaluronic acid", query: "Serum" },
+  { name: "Moisturizer", blurb: "Red marine algae", query: "Moisturizer" },
+  { name: "Cleansers", blurb: "Ginseng & cleansing oils", query: "Cleanser and Toner" },
+  { name: "Masque", blurb: "Vitamin C & Kakadu plum", query: "Masque" },
+  { name: "SPF", blurb: "Broad-spectrum SPF 30", query: "SPF" },
 ];
 
 export function ShopByCategory() {
@@ -19,7 +21,7 @@ export function ShopByCategory() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         {CATEGORIES.map((cat) => (
           <Link
             key={cat.name}
