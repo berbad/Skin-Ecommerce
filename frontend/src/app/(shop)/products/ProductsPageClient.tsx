@@ -2,17 +2,8 @@
 
 import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   Select,
   SelectContent,
@@ -21,28 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSearchParams, useRouter } from "next/navigation";
-import { normalizeImageSrc } from "@/lib/images";
-
-interface Product {
-  _id?: string;
-  id?: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  image: string;
-  featured: boolean;
-  ingredients?: string;
-  benefits?: string;
-  howToUse?: string;
-}
+import { cn } from "@/lib/utils";
+import { ProductCard } from "@/components/product/ProductCard";
+import type { Product } from "@/components/product/product";
 
 export default function ProductsPageClient() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [sortOption, setSortOption] = useState<string>("");
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [zoomedImageSrc, setZoomedImageSrc] = useState("");
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
@@ -51,11 +27,7 @@ export default function ProductsPageClient() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   useEffect(() => {
-    if (categoryFromQuery) {
-      setSelectedCategory(categoryFromQuery);
-    } else {
-      setSelectedCategory("All");
-    }
+    setSelectedCategory(categoryFromQuery ?? "All");
   }, [categoryFromQuery]);
 
   useEffect(() => {
@@ -73,30 +45,7 @@ export default function ProductsPageClient() {
     loadProducts();
   }, []);
 
-  const categories = Array.from(
-    new Set(products.map((p) => p.category))
-  ).sort();
-
-  const handleAddToCart = (product: Product) => {
-    if (typeof window === "undefined") return;
-    const existing = localStorage.getItem("cart");
-    const cart = existing ? JSON.parse(existing) : [];
-    const match = cart.find(
-      (item: any) => item.id === (product._id ?? product.id)
-    );
-    if (match) {
-      match.quantity += 1;
-    } else {
-      cart.push({
-        id: product._id ?? product.id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-      });
-    }
-    localStorage.setItem("cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cart-updated"));
-  };
+  const categories = Array.from(new Set(products.map((p) => p.category))).sort();
 
   let filtered =
     selectedCategory === "All"
@@ -111,44 +60,57 @@ export default function ProductsPageClient() {
     filtered = [...filtered].sort((a, b) => b.price - a.price);
   }
 
+  const goToProduct = (product: Product) =>
+    router.push(`/products/${product._id ?? product.id}`);
+
+  const filterButton = (label: string, value: string, href: string) => (
+    <button
+      key={value}
+      onClick={() => router.push(href)}
+      className={cn(
+        "block w-full rounded-md px-3 py-1.5 text-left text-sm transition-colors",
+        selectedCategory === value
+          ? "bg-brand-soft font-medium text-brand"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      {label}
+    </button>
+  );
+
   return (
-    <div className="w-full max-w-[1600px] mx-auto py-8 px-4 flex">
-      <aside className="w-48 space-y-2 pr-4">
-        <h2 className="font-bold">Categories</h2>
-        <button
-          className={`block w-full text-left px-2 py-1 rounded ${
-            selectedCategory === "All" ? "bg-pink-200" : ""
-          }`}
-          onClick={() => router.push("/products")}
-        >
-          All
-        </button>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            className={`block w-full text-left px-2 py-1 rounded ${
-              selectedCategory === cat ? "bg-pink-200" : ""
-            }`}
-            onClick={() =>
-              router.push(`/products?category=${encodeURIComponent(cat)}`)
-            }
-          >
-            {cat}
-          </button>
-        ))}
+    <div className="mx-auto flex max-w-7xl gap-8 px-4 py-10">
+      <aside className="hidden w-52 flex-none md:block">
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          Categories
+        </h2>
+        <div className="space-y-1">
+          {filterButton("All products", "All", "/products")}
+          {categories.map((cat) =>
+            filterButton(cat, cat, `/products?category=${encodeURIComponent(cat)}`)
+          )}
+        </div>
       </aside>
 
       <div className="flex-1">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-bold">
-            {selectedCategory === "All" ? "All Products" : selectedCategory}
-          </h1>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {selectedCategory === "All" ? "All products" : selectedCategory}
+            </h1>
+            {!loading && (
+              <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+                {filtered.length}{" "}
+                {filtered.length === 1 ? "product" : "products"}
+              </p>
+            )}
+          </div>
           <Select onValueChange={(val: string) => setSortOption(val)}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-[190px]">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="alphabetical">Alphabetical (A-Z)</SelectItem>
+              <SelectItem value="alphabetical">Alphabetical (A–Z)</SelectItem>
               <SelectItem value="price-low">Price: Low to High</SelectItem>
               <SelectItem value="price-high">Price: High to Low</SelectItem>
             </SelectContent>
@@ -156,164 +118,42 @@ export default function ProductsPageClient() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <Card key={i} className="flex flex-col h-full">
+              <Card key={i} className="flex h-full flex-col">
                 <Skeleton className="aspect-square w-full" />
                 <CardHeader className="p-4">
-                  <Skeleton className="h-5 w-3/4 mb-2" />
-                  <Skeleton className="h-4 w-full mb-1" />
-                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="mb-2 h-5 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
-                  <div className="flex items-center justify-between">
-                    <Skeleton className="h-6 w-20" />
-                    <Skeleton className="h-5 w-16 rounded-full" />
-                  </div>
+                  <Skeleton className="h-6 w-20" />
                 </CardContent>
-                <CardFooter className="p-4 pt-0 flex justify-between gap-2">
+                <CardFooter className="flex gap-2 p-4 pt-0">
                   <Skeleton className="h-9 w-28" />
                   <Skeleton className="h-9 w-16" />
                 </CardFooter>
               </Card>
             ))}
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-card py-20 text-center">
+            <p className="text-sm text-muted-foreground">
+              No products in this category yet.
+            </p>
+          </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((product) => (
-              <Card
+              <ProductCard
                 key={product._id ?? product.id}
-                className="flex flex-col h-full justify-between"
-              >
-                <div className="aspect-square bg-muted flex items-center justify-center">
-                  <img
-                    src={normalizeImageSrc(product.image)}
-                    alt={product.name}
-                    className="object-cover h-full w-full"
-                  />
-                </div>
-                <CardHeader className="p-4">
-                  <CardTitle>{product.name}</CardTitle>
-                  <CardDescription>{product.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 mt-auto">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold">${product.price.toFixed(2)}</p>
-                    <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full">
-                      {product.category}
-                    </span>
-                  </div>
-                </CardContent>
-                <CardFooter className="p-4 pt-0 flex justify-between gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleAddToCart(product)}
-                  >
-                    Add to Cart
-                  </Button>
-                  <Button size="sm" onClick={() => setSelectedProduct(product)}>
-                    View
-                  </Button>
-                </CardFooter>
-              </Card>
+                product={product}
+                onView={goToProduct}
+              />
             ))}
           </div>
         )}
       </div>
-
-      <AnimatePresence>
-        {selectedProduct && (
-          <div
-            className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50"
-            onClick={() => setSelectedProduct(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white rounded-2xl p-8 w-full max-w-4xl shadow-lg relative"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => setSelectedProduct(null)}
-                className="absolute top-4 right-4 text-gray-500 hover:text-black text-xl font-bold"
-                aria-label="Close product details"
-              >
-                ✕
-              </button>
-              <h2 className="text-2xl font-bold mb-6">
-                {selectedProduct.name}
-              </h2>
-              <div className="flex flex-col md:flex-row gap-6">
-                <img
-                  onClick={() => {
-                    setZoomedImageSrc(normalizeImageSrc(selectedProduct.image));
-                    setIsZoomed(true);
-                  }}
-                  src={normalizeImageSrc(selectedProduct.image)}
-                  alt={selectedProduct.name}
-                  className="w-full md:w-64 h-auto object-cover rounded cursor-zoom-in transition-transform duration-300 ease-in-out hover:scale-105"
-                />
-                <div className="space-y-4 text-sm text-gray-700">
-                  <p className="text-muted-foreground">
-                    {selectedProduct.description}
-                  </p>
-                  <div>
-                    <span className="font-semibold">Price:</span> $
-                    {selectedProduct.price.toFixed(2)}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Category:</span>{" "}
-                    {selectedProduct.category}
-                  </div>
-                  {selectedProduct.ingredients && (
-                    <div>
-                      <span className="font-semibold">Ingredients:</span>{" "}
-                      {selectedProduct.ingredients}
-                    </div>
-                  )}
-                  {selectedProduct.benefits && (
-                    <div>
-                      <span className="font-semibold">Benefits:</span>{" "}
-                      {selectedProduct.benefits}
-                    </div>
-                  )}
-                  {selectedProduct.howToUse && (
-                    <div>
-                      <span className="font-semibold">How to Use:</span>{" "}
-                      {selectedProduct.howToUse}
-                    </div>
-                  )}
-                  <Button
-                    className="mt-4 bg-pink-600 text-white"
-                    onClick={() => {
-                      handleAddToCart(selectedProduct);
-                      setSelectedProduct(null);
-                    }}
-                  >
-                    Add to Cart
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {isZoomed && (
-        <div
-          className="fixed inset-0 bg-black/80 z-[999] flex items-center justify-center"
-          onClick={() => setIsZoomed(false)}
-        >
-          <img
-            src={zoomedImageSrc}
-            alt="Zoomed"
-            className="max-w-[90%] max-h-[90%] rounded-lg cursor-zoom-out shadow-xl"
-          />
-        </div>
-      )}
     </div>
   );
 }
