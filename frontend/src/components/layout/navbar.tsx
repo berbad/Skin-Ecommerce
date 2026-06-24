@@ -22,15 +22,13 @@ function Wordmark({ className }: { className?: string }) {
   return (
     <Link
       href="/"
-      className={cn("flex items-center gap-2", className)}
+      className={cn(
+        "text-base font-semibold uppercase tracking-[0.18em] text-foreground",
+        className
+      )}
       aria-label="Eternal Botanic home"
     >
-      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand text-brand-foreground text-sm font-semibold">
-        E
-      </span>
-      <span className="text-base font-semibold uppercase tracking-[0.18em] text-foreground">
-        Eternal Botanic
-      </span>
+      Eternal Botanic
     </Link>
   );
 }
