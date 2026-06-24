@@ -4,8 +4,7 @@ import Link from "next/link";
 export function Footer() {
   return (
     <footer className="border-t border-border bg-card">
-      <div className="max-w-7xl mx-auto px-4">
-      <div className="container py-8 md:py-12">
+      <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           {/* Brand Info */}
           <div className="space-y-4">
@@ -125,13 +124,12 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 border-t pt-6">
+        <div className="mt-8 border-t border-border pt-6">
           <p className="text-center text-sm text-muted-foreground">
             &copy; {new Date().getFullYear()} Eternal Botanic. All rights
             reserved.
           </p>
         </div>
-      </div>
       </div>
     </footer>
   );

@@ -4,7 +4,10 @@ import { Footer } from "./footer";
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: any) => (
-    <a href={typeof href === "string" ? href : href?.pathname ?? "#"} {...props}>
+    <a
+      href={typeof href === "string" ? href : (href?.pathname ?? "#")}
+      {...props}
+    >
       {children}
     </a>
   ),
@@ -28,6 +31,8 @@ describe("Footer", () => {
   it("shows the current year", () => {
     render(<Footer />);
     const year = String(new Date().getFullYear());
-    expect(screen.getByText(new RegExp(year))).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(`\\b${year}\\b.*All rights reserved`)),
+    ).toBeInTheDocument();
   });
 });
