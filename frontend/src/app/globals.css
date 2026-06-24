@@ -140,9 +140,3 @@
     cursor: not-allowed;
   }
 }
-
-@layer utilities {
-  .tabular-nums {
-    font-variant-numeric: tabular-nums;
-  }
-}
