@@ -8,27 +8,16 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
-
-type Product = {
-  _id?: string;
-  id?: string;
-  name: string;
-  description: string;
-  price: number;
-  image: string;
-  category?: string;
-  ingredients?: string;
-  benefits?: string;
-  howToUse?: string;
-  featured?: boolean;
-};
+import { HeroSection } from "@/components/home/HeroSection";
+import { ConcernChips } from "@/components/home/ConcernChips";
+import { ScienceStrip } from "@/components/home/ScienceStrip";
+import { ProductCard } from "@/components/product/ProductCard";
+import { addToCart, type Product } from "@/components/product/product";
 
 export default function Home() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -55,52 +44,18 @@ export default function Home() {
     fetchProducts();
   }, []);
 
-  const handleAddToCart = (product: Product) => {
-    if (typeof window === "undefined") return;
-    const existing = localStorage.getItem("cart");
-    const cart = existing ? JSON.parse(existing) : [];
-    const match = cart.find(
-      (item: any) => item.id === (product._id ?? product.id)
-    );
-    if (match) {
-      match.quantity += 1;
-    } else {
-      cart.push({
-        id: product._id ?? product.id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-      });
-    }
-    localStorage.setItem("cart", JSON.stringify(cart));
-    window.dispatchEvent(new Event("cart-updated"));
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4">
-      <section className="bg-pink-50 py-20 text-center rounded-2xl mt-6">
-        <h1 className="text-5xl font-bold text-pink-900 leading-tight">
-          Natural Skincare for Healthy, Glowing Skin
-        </h1>
-        <p className="mt-6 max-w-xl mx-auto text-lg text-muted-foreground">
-          Our products use the finest natural ingredients to nurture and
-          revitalize your skin.
-        </p>
-        <div className="mt-8 flex justify-center gap-4 flex-wrap">
-          <Button asChild size="lg" className="bg-pink-600 hover:bg-pink-700">
-            <Link href="/products">Shop Now</Link>
-          </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href="/about">Learn More</Link>
-          </Button>
-        </div>
-      </section>
+      <HeroSection />
+      <ConcernChips />
 
       <section className="py-20">
-        <h2 className="text-3xl font-bold text-center">Featured Products</h2>
-        <p className="mt-4 text-center text-muted-foreground">
-          Discover our most popular skincare solutions
-        </p>
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-2xl font-semibold tracking-tight">Bestsellers</h2>
+          <Link href="/products" className="text-sm text-brand hover:underline">
+            View all →
+          </Link>
+        </div>
 
         {loading ? (
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -124,48 +79,11 @@ export default function Home() {
         ) : (
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {featuredProducts.map((product) => (
-              <Card
+              <ProductCard
                 key={product._id ?? product.id}
-                className="flex flex-col h-full justify-between"
-              >
-                <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-                  <img
-                    src={normalizeImageSrc(product.image)}
-                    alt={product.name}
-                    className="object-cover h-full w-full"
-                    loading="lazy"
-                  />
-                </div>
-
-                <CardHeader className="p-4">
-                  <CardTitle>{product.name}</CardTitle>
-                  <CardDescription>{product.description}</CardDescription>
-                </CardHeader>
-
-                <CardContent className="p-4 pt-0 mt-auto">
-                  <div className="flex items-center justify-between">
-                    <p className="font-semibold">${product.price.toFixed(2)}</p>
-                    {product.category && (
-                      <span className="text-xs bg-pink-100 text-pink-700 px-2 py-1 rounded-full">
-                        {product.category}
-                      </span>
-                    )}
-                  </div>
-                </CardContent>
-
-                <CardFooter className="p-4 pt-0 flex justify-between gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleAddToCart(product)}
-                  >
-                    Add to Cart
-                  </Button>
-                  <Button size="sm" onClick={() => setSelectedProduct(product)}>
-                    View
-                  </Button>
-                </CardFooter>
-              </Card>
+                product={product}
+                onView={setSelectedProduct}
+              />
             ))}
           </div>
         )}
@@ -176,6 +94,8 @@ export default function Home() {
           </Button>
         </div>
       </section>
+
+      <ScienceStrip />
 
       <AnimatePresence>
         {selectedProduct && (
@@ -252,9 +172,9 @@ export default function Home() {
                     </div>
                   )}
                   <Button
-                    className="mt-4 bg-pink-600 text-white hover:bg-pink-700"
+                    className="mt-4"
                     onClick={() => {
-                      handleAddToCart(selectedProduct);
+                      addToCart(selectedProduct);
                       setSelectedProduct(null);
                     }}
                   >
