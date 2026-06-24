@@ -27,7 +27,7 @@ export function HeroSection() {
         </div>
       </div>
 
-      <div className="relative min-h-[320px] overflow-hidden rounded-2xl bg-gradient-to-br from-brand-soft to-[color-mix(in_oklab,var(--brand)_25%,white)] md:min-h-[380px]">
+      <div className="relative min-h-[320px] overflow-hidden rounded-2xl bg-gradient-to-br from-brand-soft to-[color-mix(in_oklab,var(--brand)_25%,var(--card))] md:min-h-[380px]">
         <div className="absolute bottom-6 right-6 rounded-xl border border-border bg-card px-4 py-3 shadow-sm">
           <p className="text-sm font-semibold tabular-nums">Niacinamide 10%</p>
           <p className="text-xs text-muted-foreground">Pores · Texture</p>
