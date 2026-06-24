@@ -4,6 +4,9 @@ import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   plugins: [react()],
+  // Bypass the project's Tailwind 4 @tailwindcss/postcss plugin, which is
+  // incompatible with Vitest's PostCSS loader. Harmless for unit/RTL tests
+  // since jsdom does not compute styles.
   css: {
     postcss: {
       plugins: [],
