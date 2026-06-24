@@ -36,8 +36,8 @@ describe("Navbar", () => {
   it("marks the active route with brand text color", async () => {
     pathname.current = "/products";
     render(<Navbar />);
-    const productsLinks = await screen.findAllByText("Products");
-    expect(productsLinks[0].className).toContain("text-brand");
+    const shopLinks = await screen.findAllByText("Shop");
+    expect(shopLinks[0].className).toContain("text-brand");
   });
 
   it("shows account and cart links when logged out", async () => {
@@ -70,7 +70,7 @@ describe("Navbar", () => {
     const user = userEvent.setup();
     render(<Navbar />);
     await user.click(screen.getByLabelText("Menu"));
-    const homeLinks = await screen.findAllByText("Home");
-    expect(homeLinks.length).toBeGreaterThan(1);
+    const shopLinks = await screen.findAllByText("Shop");
+    expect(shopLinks.length).toBeGreaterThan(1);
   });
 });
