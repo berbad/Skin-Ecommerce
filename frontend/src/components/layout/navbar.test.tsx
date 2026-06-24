@@ -53,6 +53,19 @@ describe("Navbar", () => {
     expect(container.innerHTML).not.toContain("pink-600");
   });
 
+  it("uses brand tokens and no pink in the logged-in (admin) branch", async () => {
+    getCurrentUser.mockResolvedValue({
+      name: "Ada",
+      email: "ada@example.com",
+      role: "admin",
+    });
+    const { container } = render(<Navbar />);
+    // avatar button renders the user's initial once the user loads
+    expect(await screen.findByRole("button", { name: "A" })).toBeInTheDocument();
+    expect(container.innerHTML).not.toContain("pink-600");
+    expect(container.innerHTML).toContain("bg-brand");
+  });
+
   it("opens the mobile menu when the menu button is clicked", async () => {
     const user = userEvent.setup();
     render(<Navbar />);
