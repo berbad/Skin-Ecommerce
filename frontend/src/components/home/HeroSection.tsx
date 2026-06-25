@@ -56,7 +56,7 @@ export function HeroSection({ product }: { product?: Product }) {
           <img
             src={normalizeImageSrc(image)}
             alt={product?.name ?? "Featured product"}
-            className="absolute inset-0 h-full w-full object-cover"
+            className="absolute inset-0 h-full w-full object-contain p-10 mix-blend-multiply"
           />
         ) : (
           // fallback placeholder while products load
