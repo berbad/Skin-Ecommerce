@@ -84,14 +84,16 @@ export default function CartPage() {
   };
 
   return (
-    <div className="container max-w-screen-xl py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6 text-left pl-20">Your Cart</h1>
+    <div className="mx-auto max-w-4xl px-4 py-10">
+      <h1 className="mb-6 text-3xl font-semibold tracking-tight">Your Cart</h1>
 
       {cartItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center min-h-[60vh] text-left pl-145">
-          <ShoppingCart className="h-16 w-16 text-muted-foreground mb-8" />
-          <h2 className="text-2xl font-semibold mb-2">Your cart is empty</h2>
-          <p className="text-muted-foreground mb-6 max-w-md">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card px-6 py-20 text-center">
+          <ShoppingCart className="mb-8 h-16 w-16 text-muted-foreground" />
+          <h2 className="mb-2 text-2xl font-semibold tracking-tight">
+            Your cart is empty
+          </h2>
+          <p className="mb-6 max-w-md text-muted-foreground">
             Looks like you haven’t added anything yet. Start exploring our
             skincare collection and treat yourself!
           </p>
@@ -110,25 +112,30 @@ export default function CartPage() {
                 {cartItems.map((item, i) => (
                   <div key={item.id}>
                     <div className="flex items-center py-4">
-                      <div className="h-20 w-20 bg-muted rounded mr-4" />
+                      <div className="mr-4 h-20 w-20 rounded-lg bg-muted" />
                       <div className="flex-1">
-                        <h3 className="font-medium">{item.name}</h3>
+                        <h3 className="font-medium text-foreground">
+                          {item.name}
+                        </h3>
                         <p className="text-sm text-muted-foreground">
-                          Unit Price: ${item.price.toFixed(2)}
+                          Unit Price:{" "}
+                          <span className="tabular-nums">
+                            ${item.price.toFixed(2)}
+                          </span>
                         </p>
                       </div>
-                      <div className="flex items-center mr-4">
+                      <div className="mr-4 flex items-center">
                         <button
                           onClick={() =>
                             handleUpdateQty(item.id, item.quantity - 1)
                           }
-                          className="px-2 py-1 border rounded-l-md"
+                          className="rounded-l-md border border-border px-2 py-1 text-foreground hover:bg-muted"
                           aria-label={`Decrease quantity of ${item.name}`}
                         >
                           -
                         </button>
                         <span
-                          className="px-4 border-y"
+                          className="border-y border-border px-4 tabular-nums"
                           aria-label={`Quantity: ${item.quantity}`}
                         >
                           {item.quantity}
@@ -137,19 +144,20 @@ export default function CartPage() {
                           onClick={() =>
                             handleUpdateQty(item.id, item.quantity + 1)
                           }
-                          className="px-2 py-1 border rounded-r-md"
+                          className="rounded-r-md border border-border px-2 py-1 text-foreground hover:bg-muted"
                           aria-label={`Increase quantity of ${item.name}`}
                         >
                           +
                         </button>
                       </div>
                       <div className="flex items-center">
-                        <p className="font-medium mr-4">
+                        <p className="mr-4 font-medium tabular-nums text-foreground">
                           ${(item.price * item.quantity).toFixed(2)}
                         </p>
                         <button
                           onClick={() => handleRemove(item.id)}
-                          className="text-red-600"
+                          className="text-destructive hover:text-destructive/80"
+                          aria-label={`Remove ${item.name}`}
                         >
                           <Trash2 className="h-5 w-5" />
                         </button>
@@ -183,18 +191,18 @@ export default function CartPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-muted-foreground">
                     <span>Subtotal</span>
-                    <span>${subtotal.toFixed(2)}</span>
+                    <span className="tabular-nums">${subtotal.toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-muted-foreground">
                     <span>Shipping</span>
-                    <span>${shipping.toFixed(2)}</span>
+                    <span className="tabular-nums">${shipping.toFixed(2)}</span>
                   </div>
                   <Separator />
-                  <div className="flex justify-between font-bold">
+                  <div className="flex justify-between font-semibold text-foreground">
                     <span>Total</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span className="tabular-nums">${total.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>

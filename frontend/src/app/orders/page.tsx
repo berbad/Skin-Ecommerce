@@ -27,8 +27,10 @@ export default function OrdersPage() {
 
   if (loading || loadingOrders) {
     return (
-      <div className="max-w-3xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-4">Your Orders</h1>
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <h1 className="mb-4 text-2xl font-semibold tracking-tight">
+          Your Orders
+        </h1>
         <div className="space-y-4">
           <div className="animate-pulse">
             <div className="h-5 w-40 bg-muted rounded mb-2" />
@@ -50,21 +52,21 @@ export default function OrdersPage() {
     if (status === "fulfilled") return "bg-blue-100 text-blue-700";
     if (status === "processing") return "bg-amber-100 text-amber-700";
     if (status === "cancelled") return "bg-red-100 text-red-700";
-    return "bg-gray-100 text-gray-700";
+    return "bg-muted text-muted-foreground";
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Your Orders</h1>
+    <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Your Orders</h1>
         <Button onClick={() => router.push("/products")}>
           Continue shopping
         </Button>
       </div>
 
       {orders.length === 0 ? (
-        <Card className="p-6">
-          <p className="text-muted-foreground mb-4">
+        <Card className="flex flex-col items-center rounded-2xl border-border p-10 text-center">
+          <p className="mb-6 text-muted-foreground">
             You haven't placed any orders yet.
           </p>
           <Button onClick={() => router.push("/products")}>

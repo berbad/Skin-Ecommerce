@@ -22,20 +22,28 @@ export default function SuccessPage() {
   }, [sessionId]);
 
   if (!receipt)
-    return <div className="p-8 text-center">Loading receipt...</div>;
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        Loading receipt...
+      </div>
+    );
 
   return (
-    <div className="p-8 text-center">
-      <h1 className="text-3xl font-bold text-green-600 mb-4">
+    <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+      <h1 className="mb-4 text-3xl font-semibold tracking-tight text-brand">
         🎉 Payment Successful!
       </h1>
-      <p className="text-lg mb-2">
+      <p className="mb-6 text-lg text-foreground">
         Thank you for your order, {receipt.customer_email}!
       </p>
-      <p className="text-sm text-gray-700">Session ID: {receipt.id}</p>
-      <p className="text-lg font-medium mt-2">
-        Amount Paid: ${(receipt.amount_total / 100).toFixed(2)}
-      </p>
+      <div className="rounded-2xl border border-border bg-card p-6 text-left">
+        <p className="text-sm text-muted-foreground">
+          Session ID: {receipt.id}
+        </p>
+        <p className="mt-2 text-lg font-medium tabular-nums text-foreground">
+          Amount Paid: ${(receipt.amount_total / 100).toFixed(2)}
+        </p>
+      </div>
     </div>
   );
 }

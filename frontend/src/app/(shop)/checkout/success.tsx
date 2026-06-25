@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Separator } from "@/components/ui/separator";
 import { API_URL } from "@/lib/config";
 export default function SuccessPage() {
   const searchParams = useSearchParams();
@@ -17,31 +18,42 @@ export default function SuccessPage() {
       .catch(console.error);
   }, [sessionId]);
 
-  if (!order) return <p className="text-center py-20">Loading your order...</p>;
+  if (!order)
+    return (
+      <p className="py-20 text-center text-muted-foreground">
+        Loading your order...
+      </p>
+    );
 
   return (
-    <div className="max-w-2xl mx-auto py-20 text-center">
-      <h1 className="text-3xl font-bold mb-4">Thanks for your order!</h1>
-      <p className="text-muted-foreground mb-6">
+    <div className="mx-auto max-w-2xl px-4 py-20 text-center">
+      <h1 className="mb-4 text-3xl font-semibold tracking-tight">
+        Thanks for your order!
+      </h1>
+      <p className="mb-6 text-muted-foreground">
         We've received your payment and will ship soon.
       </p>
 
-      <div className="text-left border p-4 rounded shadow-sm bg-white">
-        <h2 className="text-lg font-semibold mb-2">Order Summary:</h2>
+      <div className="rounded-2xl border border-border bg-card p-6 text-left">
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">
+          Order Summary:
+        </h2>
         {order.items.map((item: any) => (
-          <div key={item.productId} className="flex justify-between mb-1">
-            <span>
+          <div key={item.productId} className="mb-1 flex justify-between">
+            <span className="text-foreground">
               {item.name} × {item.quantity}
             </span>
-            <span>${(item.price * item.quantity).toFixed(2)}</span>
+            <span className="tabular-nums text-foreground">
+              ${(item.price * item.quantity).toFixed(2)}
+            </span>
           </div>
         ))}
-        <hr className="my-2" />
-        <div className="flex justify-between font-bold">
+        <Separator className="my-3" />
+        <div className="flex justify-between font-semibold text-foreground">
           <span>Total:</span>
-          <span>${order.total.toFixed(2)}</span>
+          <span className="tabular-nums">${order.total.toFixed(2)}</span>
         </div>
-        <p className="text-sm text-muted-foreground mt-2">
+        <p className="mt-3 text-sm text-muted-foreground">
           Status: {order.status}
         </p>
       </div>
