@@ -20,7 +20,7 @@ import { ProductCard } from "@/components/product/ProductCard";
 import { type Product } from "@/components/product/product";
 
 export default function Home() {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -29,10 +29,7 @@ export default function Home() {
       try {
         setLoading(true);
         const res = await axios.get("/products");
-        const featured = res.data.products.filter((p: Product) => p.featured);
-        setFeaturedProducts(
-          featured.length > 0 ? featured : res.data.products.slice(0, 4)
-        );
+        setProducts(res.data.products ?? []);
       } catch (err) {
         console.error("Error loading products:", err);
       } finally {
@@ -42,13 +39,29 @@ export default function Home() {
     fetchProducts();
   }, []);
 
+  const featured = products.filter((p) => p.featured);
+  const bestsellers = featured.length > 0 ? featured : products.slice(0, 4);
+
+  const heroProduct =
+    products.find((p) => p.name === "Restorative Marine Moisturizer") ??
+    products.find((p) => p.category === "Moisturizer") ??
+    products[0];
+
+  const categoryImages: Record<string, string> = {};
+  for (const p of products) {
+    const img = typeof p.image === "string" ? p.image : "";
+    if (img && p.category && !categoryImages[p.category]) {
+      categoryImages[p.category] = img;
+    }
+  }
+
   const goToProduct = (product: Product) =>
     router.push(`/products/${product._id ?? product.id}`);
 
   return (
     <div className="max-w-7xl mx-auto px-4">
-      <HeroSection />
-      <ShopByCategory />
+      <HeroSection product={heroProduct} />
+      <ShopByCategory images={categoryImages} />
 
       <section className="py-16">
         <div className="flex items-baseline justify-between">
@@ -79,7 +92,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
+            {bestsellers.map((product) => (
               <ProductCard
                 key={product._id ?? product.id}
                 product={product}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { normalizeImageSrc } from "@/lib/images";
 
 // Categories and query values match the real product catalog.
 const CATEGORIES = [
@@ -9,7 +10,11 @@ const CATEGORIES = [
   { name: "SPF", blurb: "Broad-spectrum SPF 30", query: "SPF" },
 ];
 
-export function ShopByCategory() {
+export function ShopByCategory({
+  images = {},
+}: {
+  images?: Record<string, string>;
+}) {
   return (
     <section className="py-16">
       <div className="mb-8 flex items-baseline justify-between">
@@ -22,21 +27,33 @@ export function ShopByCategory() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-        {CATEGORIES.map((cat) => (
-          <Link
-            key={cat.name}
-            href={`/products?category=${encodeURIComponent(cat.query)}`}
-            className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-brand-soft to-[color-mix(in_oklab,var(--brand)_18%,var(--card))] p-5 transition-shadow hover:shadow-lg"
-          >
-            <span className="text-lg font-semibold tracking-tight">
-              {cat.name}
-            </span>
-            <span className="text-xs text-muted-foreground">{cat.blurb}</span>
-            <span className="mt-3 text-sm font-medium text-brand transition-transform group-hover:translate-x-0.5">
-              Shop →
-            </span>
-          </Link>
-        ))}
+        {CATEGORIES.map((cat) => {
+          const image = images[cat.query];
+          return (
+            <Link
+              key={cat.name}
+              href={`/products?category=${encodeURIComponent(cat.query)}`}
+              className="group relative flex aspect-[4/5] flex-col justify-end overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-brand-soft to-[color-mix(in_oklab,var(--brand)_18%,var(--card))] p-5 transition-shadow hover:shadow-lg"
+            >
+              {image && (
+                <img
+                  src={normalizeImageSrc(image)}
+                  alt={cat.name}
+                  className="pointer-events-none absolute inset-x-0 top-3 mx-auto h-1/2 object-contain mix-blend-multiply transition-transform duration-300 group-hover:scale-105"
+                />
+              )}
+              <span className="relative text-lg font-semibold tracking-tight">
+                {cat.name}
+              </span>
+              <span className="relative text-xs text-muted-foreground">
+                {cat.blurb}
+              </span>
+              <span className="relative mt-3 text-sm font-medium text-brand transition-transform group-hover:translate-x-0.5">
+                Shop →
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
