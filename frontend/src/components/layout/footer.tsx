@@ -10,8 +10,8 @@ export function Footer() {
           <div className="space-y-4">
             <h3 className="text-lg font-medium">Eternal Botanic</h3>
             <p className="text-sm text-muted-foreground">
-              Dermatologist-grade formulas built around clinically-studied,
-              fully-transparent ingredients.
+              Marine and botanical skincare, with every ingredient published in
+              full.
             </p>
           </div>
 
