@@ -21,11 +21,11 @@ export function ProductCard({
 }) {
   return (
     <Card className="flex h-full flex-col justify-between overflow-hidden border-border">
-      <div className="flex aspect-square items-center justify-center overflow-hidden bg-brand-soft">
+      <div className="flex aspect-square items-center justify-center overflow-hidden bg-gradient-to-br from-brand-soft to-[color-mix(in_oklab,var(--brand)_18%,var(--card))] p-6">
         <img
           src={normalizeImageSrc(product.image)}
           alt={product.name}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain mix-blend-multiply transition-transform duration-300 hover:scale-105"
           loading="lazy"
         />
       </div>
