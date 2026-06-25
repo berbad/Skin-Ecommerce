@@ -29,8 +29,10 @@ export default function AdminPage() {
   if (!user || user.role !== "admin") return null;
 
   return (
-    <main className="p-6">
-      <h1 className="text-3xl font-bold mb-4">Admin Dashboard</h1>
+    <main className="mx-auto max-w-7xl px-4 py-10">
+      <h1 className="mb-6 text-3xl font-semibold tracking-tight">
+        Admin Dashboard
+      </h1>
       <AdminProductTable refresh={refresh} />
     </main>
   );
