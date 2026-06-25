@@ -106,7 +106,7 @@ export default function ContactPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-bold mb-6 text-pink-900">Contact Us</h1>
+      <h1 className="text-4xl font-semibold tracking-tight mb-6 text-foreground">Contact Us</h1>
       <p className="text-muted-foreground mb-8">
         Questions or feedback? Send a message and we’ll respond shortly.
       </p>
@@ -218,7 +218,6 @@ export default function ContactPage() {
           <Button
             type="submit"
             disabled={loading}
-            className="bg-pink-600 hover:bg-pink-700"
           >
             {loading ? "Sending..." : "Send Message"}
           </Button>

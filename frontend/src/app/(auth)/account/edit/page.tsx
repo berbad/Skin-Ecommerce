@@ -112,7 +112,6 @@ export default function EditProfilePage() {
             Cancel
           </Button>
           <Button
-            className="bg-pink-600 hover:bg-pink-700"
             onClick={handleSave}
             disabled={saving}
           >

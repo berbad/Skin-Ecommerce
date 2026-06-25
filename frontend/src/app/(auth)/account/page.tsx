@@ -75,7 +75,7 @@ export default function AccountPage() {
       {/* Header / Profile */}
       <section className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full bg-pink-100 text-pink-700 flex items-center justify-center text-xl font-bold">
+          <div className="h-16 w-16 rounded-full bg-brand-soft text-brand flex items-center justify-center text-xl font-bold">
             {initials}
           </div>
           <div>
@@ -147,7 +147,7 @@ export default function AccountPage() {
               <span className="text-xs text-muted-foreground">→</span>
             </Button>
             <Button
-              className="bg-pink-600 hover:bg-pink-700 cursor-pointer"
+              className="cursor-pointer"
               onClick={logout}
             >
               Logout

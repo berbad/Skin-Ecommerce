@@ -29,7 +29,7 @@ export function CartCountBubble() {
   if (count === 0) return null;
 
   return (
-    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-pink-600 text-xs text-white">
+    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand text-xs text-brand-foreground">
       {count}
     </span>
   );

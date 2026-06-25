@@ -201,7 +201,7 @@ export default function RegisterPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-pink-600 hover:bg-pink-700"
+                className="w-full"
                 disabled={isLoading}
               >
                 {isLoading ? "Creating account..." : "Register"}
@@ -211,7 +211,7 @@ export default function RegisterPage() {
           <CardFooter className="flex justify-center">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="text-pink-600 hover:text-pink-800">
+              <Link href="/login" className="text-brand hover:text-brand">
                 Log in
               </Link>
             </p>

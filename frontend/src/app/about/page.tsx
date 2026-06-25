@@ -17,8 +17,8 @@ export default function AboutPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-20">
       <header className="text-center">
-        <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4">
-          About <span className="text-pink-600">EternalBotanic</span>
+        <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight mb-4">
+          About <span className="text-brand">EternalBotanic</span>
         </h1>
         <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
           Professional-grade skincare, crafted in partnership with expert labs
@@ -52,7 +52,7 @@ export default function AboutPage() {
         <ul className="grid gap-4 sm:grid-cols-2">
           <li className="rounded-2xl border p-4">
             <div className="flex items-center gap-3">
-              <Leaf className="h-5 w-5 text-pink-600" aria-hidden />
+              <Leaf className="h-5 w-5 text-brand" aria-hidden />
               <span className="font-medium">Plant-powered actives</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -61,7 +61,7 @@ export default function AboutPage() {
           </li>
           <li className="rounded-2xl border p-4">
             <div className="flex items-center gap-3">
-              <FlaskConical className="h-5 w-5 text-pink-600" aria-hidden />
+              <FlaskConical className="h-5 w-5 text-brand" aria-hidden />
               <span className="font-medium">Professional-grade science</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -70,7 +70,7 @@ export default function AboutPage() {
           </li>
           <li className="rounded-2xl border p-4">
             <div className="flex items-center gap-3">
-              <ShieldCheck className="h-5 w-5 text-pink-600" aria-hidden />
+              <ShieldCheck className="h-5 w-5 text-brand" aria-hidden />
               <span className="font-medium">Barrier-first care</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -79,7 +79,7 @@ export default function AboutPage() {
           </li>
           <li className="rounded-2xl border p-4">
             <div className="flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-pink-600" aria-hidden />
+              <Sparkles className="h-5 w-5 text-brand" aria-hidden />
               <span className="font-medium">Transparent labels</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -103,7 +103,7 @@ export default function AboutPage() {
       <footer className="mt-12 text-center">
         <a
           href="/products"
-          className="inline-flex items-center justify-center rounded-xl bg-pink-600 px-5 py-3 text-white text-sm font-medium transition hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-pink-600/50"
+          className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-primary-foreground text-sm font-medium transition hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring/50"
         >
           Explore products
         </a>
