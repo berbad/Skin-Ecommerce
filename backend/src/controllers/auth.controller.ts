@@ -41,7 +41,7 @@ export const getProfile = async (
       },
     });
   } catch (error) {
-    console.error("❌ Profile error:", error);
+    console.error("❌ Profile error:");
     res.status(500).json({ message: "Something went wrong" });
   }
 };
@@ -98,7 +98,7 @@ export const updateProfile = async (
       },
     });
   } catch (error) {
-    console.error("❌ Update profile error:", error);
+    console.error("❌ Update profile error:");
     res.status(500).json({ message: "Something went wrong" });
   }
 };

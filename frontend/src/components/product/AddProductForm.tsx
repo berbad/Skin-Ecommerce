@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "@/lib/axios";
 
 export default function AddProductForm({
@@ -20,7 +20,25 @@ export default function AddProductForm({
     howToUse: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const previewCanvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (!imageFile) return;
+    let cancelled = false;
+    // Decode raster pixels directly instead of putting an uploaded URL in HTML.
+    createImageBitmap(imageFile).then(bitmap => {
+      try {
+        const canvas = previewCanvas.current;
+        if (!cancelled && canvas) {
+          canvas.width = bitmap.width;
+          canvas.height = bitmap.height;
+          canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+        }
+      } finally { bitmap.close(); }
+    }).catch(() => {
+      if (!cancelled) { setImageFile(null); alert("Unable to decode this image."); }
+    });
+    return () => { cancelled = true; };
+  }, [imageFile]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -33,8 +51,13 @@ export default function AddProductForm({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+        setImageFile(null);
+        e.target.value = "";
+        alert("Choose a JPEG, PNG or WebP image smaller than 10 MB.");
+        return;
+      }
       setImageFile(file);
-      setPreview(URL.createObjectURL(file));
     }
   };
 
@@ -64,7 +87,6 @@ export default function AddProductForm({
         howToUse: "",
       });
       setImageFile(null);
-      setPreview(null);
     } catch {
       alert("Error uploading product");
     }
@@ -155,15 +177,16 @@ export default function AddProductForm({
       <div>
         <input
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           onChange={handleImageChange}
           required
         />
-        {preview && (
-          <img
-            src={preview}
+        {imageFile && (
+          <canvas
+            ref={previewCanvas}
             className="mt-2 max-h-48 rounded object-cover"
-            alt="Preview"
+            role="img"
+            aria-label="Preview"
           />
         )}
       </div>

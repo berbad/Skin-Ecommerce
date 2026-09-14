@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose";
 
-export interface IOrder extends Document {
+export interface IOrder extends Document<string> {
   _id: string;
   userId: string;
   items: {
@@ -34,6 +34,7 @@ export interface IOrder extends Document {
 const OrderSchema = new Schema<IOrder>(
   {
     _id: { type: String, required: true },
+    userId: { type: String, index: true },
     items: [
       {
         productId: { type: String, required: true },

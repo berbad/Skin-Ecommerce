@@ -32,7 +32,7 @@ router.get(
         cart: user.cart,
       });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -76,7 +76,7 @@ router.post(
 
       return void res.status(200).json({ success: true, cart: user.cart });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -122,7 +122,7 @@ router.put(
 
       return void res.status(200).json({ success: true, cart: user.cart });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -153,7 +153,7 @@ router.delete(
 
       return void res.status(200).json({ success: true, cart: user.cart });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -183,7 +183,7 @@ router.delete(
 
       return void res.status(200).json({ success: true, cart: user.cart });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }

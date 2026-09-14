@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "@/lib/axios";
 
 interface EditProductModalProps {
   productId: string;
@@ -27,7 +27,7 @@ export default function EditProductModal({
 
   useEffect(() => {
     setVisible(true);
-    axios.get(`/api/products/${productId}`).then((res) => {
+    axios.get(`/products/${productId}`).then((res) => {
       const { name, description, price, category, stock } = res.data.product;
       setForm({
         name,
@@ -50,7 +50,7 @@ export default function EditProductModal({
     setLoading(true);
     setError(null);
     try {
-      await axios.put(`/api/products/${productId}`, {
+      await axios.put(`/products/${productId}`, {
         ...form,
         price: parseFloat(form.price),
         stock: parseInt(form.stock),

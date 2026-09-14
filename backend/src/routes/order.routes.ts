@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import { authMiddleware } from "../middleware/auth.middleware";
 import Order from "../models/Order";
-import Product from "../models/product.model";
+import { isAdminMiddleware } from "../middleware/isAdmin.middleware";
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.get(
         orders,
       });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -52,71 +52,28 @@ router.get(
         order,
       });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
 );
 
-// Create a new order and update product stock
-router.post(
-  "/",
-  authMiddleware,
-  async (req: AuthedRequest, res: Response): Promise<void> => {
-    try {
-      const { items } = req.body;
-
-      const total = items.reduce(
-        (sum: number, item: any) => sum + item.price * item.quantity,
-        0
-      );
-
-      for (const item of items) {
-        const result = await Product.findOneAndUpdate(
-          {
-            _id: item.productId,
-            stock: { $gte: item.quantity }, // only update if enough stock
-          },
-          { $inc: { stock: -item.quantity } },
-          { new: true }
-        );
-
-        if (!result) {
-          res.status(400).json({
-            success: false,
-            message: `Insufficient stock for product ${item.productId}`,
-          });
-          return;
-        }
-      }
-
-      const newOrder = await Order.create({
-        userId: req.user?.id,
-        items,
-        total,
-        status: "processing",
-      });
-
-      res.status(201).json({
-        success: true,
-        message: "Order created successfully",
-        order: newOrder,
-      });
-    } catch (error) {
-      console.error("Internal error:", error);
-      res.status(500).json({ success: false, message: "Something went wrong" });
-    }
-  }
-);
+// The storefront creates orders through Stripe checkout. Direct submissions
+// cannot prove payment and previously decremented stock before failing to save.
+router.post("/", authMiddleware, (req, res) => {
+  res.status(409).json({ message: "Create orders through verified Stripe checkout" });
+});
 
 // Update an order's status
 router.patch(
   "/:id/status",
   authMiddleware,
+  isAdminMiddleware,
   async (req: AuthedRequest, res: Response): Promise<void> => {
     try {
       const orderId = req.params.id;
-      const { status } = req.body;
+      const { status } = req.body || {};
+      if (!["paid", "processing", "pending", "failed"].includes(status)) { res.status(400).json({message: "Invalid order status"}); return; }
 
       const order = await Order.findById(orderId);
       if (!order) {
@@ -133,7 +90,7 @@ router.patch(
         order,
       });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }

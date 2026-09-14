@@ -1,9 +1,10 @@
+import { csrfFetch } from "@/lib/csrf";
 import axios from "./axios";
 import { API_URL } from "./config";
 
 export const logout = async () => {
   try {
-    await fetch(`${API_URL}/api/auth/logout`, {
+    await csrfFetch(`${API_URL}/api/auth/logout`, {
       method: "POST",
       credentials: "include",
       headers: {

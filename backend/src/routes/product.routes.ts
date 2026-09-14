@@ -7,7 +7,14 @@ import { storage } from "../config/cloudinary";
 
 const router = express.Router();
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  fileFilter: (req, file, callback) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) return callback(new Error("Unsupported image type"));
+    callback(null, true);
+  },
+});
 
 router.get("/", ProductController.getAllProducts);
 router.get("/:id", ProductController.getProductById);
