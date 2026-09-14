@@ -1,4 +1,5 @@
 "use client";
+import { csrfFetch } from "@/lib/csrf";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -37,7 +38,7 @@ export default function LoginPage() {
     try {
       setIsLoading(true);
 
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      const response = await csrfFetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

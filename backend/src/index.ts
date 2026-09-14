@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import adminRoutes from "./routes/admin.routes";
+import { csrfSession, generateCsrfToken, doubleCsrfProtection } from "./middleware/csrf";
 
 dotenv.config();
 const app = express();
@@ -35,10 +36,25 @@ app.use(cors({
   origin: (origin, callback) => callback(null, !!origin && allowedOrigins.has(origin)),
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-CSRF-Token"],
 }));
 
 app.use(cookieParser());
+app.use(csrfSession);
+app.get("/api/csrf-token", (req, res) => {
+  let source = req.get("origin");
+  if (!source && req.get("referer")) {
+    try { source = new URL(req.get("referer")!).origin; } catch { /* reject below */ }
+  }
+  if (!source || !allowedOrigins.has(source)) { res.status(403).json({ message: "Untrusted request origin" }); return; }
+  res.set("Cache-Control", "no-store");
+  res.json({ csrfToken: generateCsrfToken(req, res) });
+});
+app.use(doubleCsrfProtection);
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err.code === "EBADCSRFTOKEN") { res.status(403).json({ code: "EBADCSRFTOKEN", message: "Invalid CSRF token" }); return; }
+  next(err);
+});
 
 app.use(
   helmet({

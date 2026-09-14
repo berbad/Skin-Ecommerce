@@ -1,4 +1,5 @@
 "use client";
+import { csrfFetch } from "@/lib/csrf";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ export default function ContactPage() {
     const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const res = await fetch("/api/contact", {
+      const res = await csrfFetch("/api/contact", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

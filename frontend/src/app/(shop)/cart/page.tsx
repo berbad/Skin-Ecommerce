@@ -1,4 +1,5 @@
 "use client";
+import { csrfFetch } from "@/lib/csrf";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -66,7 +67,7 @@ export default function CartPage() {
     };
   }, []);
   const handleCheckout = async () => {
-    const res = await fetch(`${API_URL}/api/stripe/create-checkout-session`, {
+    const res = await csrfFetch(`${API_URL}/api/stripe/create-checkout-session`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },

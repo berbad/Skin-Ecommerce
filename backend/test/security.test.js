@@ -26,6 +26,12 @@ const admin = jwt.sign({id:'507f1f77bcf86cd799439011',email:'admin@example.test'
 async function request(path, body, options={}) {
  await ready;
  const headers = {'Content-Type':'application/json', Origin:'https://www.eternalbotanic.com',Cookie:'token='+admin,...options.headers};
+ if (!options.noCsrf && !['GET','HEAD','OPTIONS'].includes(options.method||'POST') && path !== '/api/stripe/webhook') {
+  const bootstrap = await fetch('http://127.0.0.1:'+server.address().port+'/api/csrf-token', {headers:{Origin:'https://www.eternalbotanic.com',Cookie:headers.Cookie}});
+  const token=(await bootstrap.json()).csrfToken;
+  headers.Cookie += '; '+bootstrap.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
+  headers['X-CSRF-Token']=token;
+ }
  if (options.noOrigin) delete headers.Origin;
  const response = await fetch('http://127.0.0.1:'+server.address().port+path,{method:options.method||'POST',headers,body:body===undefined?undefined:JSON.stringify(body)});
  return {status:response.status,text:await response.text(),cookie:response.headers.get('set-cookie')};
@@ -42,6 +48,10 @@ test('unsafe cookie requests reject hostile or missing origins before route hand
  for(const options of [{headers:{Origin:'https://attacker.example'}},{noOrigin:true}]){
   const r=await request('/api/auth/logout',{},options);assert.equal(r.status,403);
  }
+});
+test('trusted-origin cookie writes still require a signed CSRF token',async()=>{
+ const r=await request('/api/auth/logout',{}, {noCsrf:true});
+ assert.equal(r.status,403);
 });
 test('authenticated responses and logs never expose cookie tokens',async()=>{
  logs.length=0;
@@ -108,6 +118,44 @@ test('confirmed delayed-payment webhooks preserve accurate unit prices and order
  const lines=mock.method(stripePrototype,'listLineItems',async()=>({data:[{description:'Serum',quantity:2,amount_total:5000,price:{product:'prod_test'}}]}));
  const send=mock.method(require('../src/utils/mailer'),'sendReceiptEmail',async()=>{});
  try {const payload=JSON.stringify({id:'evt_paid',type:'checkout.session.async_payment_succeeded',data:{object:{id:'cs_paid',payment_status:'paid',amount_total:5000,currency:'usd',metadata:{userId:'507f1f77bcf86cd799439011'}}}});const signature=new Stripe('sk_test_mock_only').webhooks.generateTestHeaderString({payload,secret:process.env.STRIPE_WEBHOOK_SECRET});const r=await request('/api/stripe/webhook',JSON.parse(payload),{noOrigin:true,headers:{'stripe-signature':signature}});assert.equal(r.status,200);assert.equal(create.mock.callCount(),1);const order=create.mock.calls[0].arguments[0];assert.equal(order.status,'paid');assert.equal(order.userId,'507f1f77bcf86cd799439011');assert.equal(order.total,50);assert.equal(order.items[0].price,25);create.mock.mockImplementation(async()=>{throw new Error('database unavailable');});const retry=await request('/api/stripe/webhook',JSON.parse(payload),{noOrigin:true,headers:{'stripe-signature':signature}});assert.equal(retry.status,500);}finally{find.mock.restore();create.mock.restore();lines.mock.restore();send.mock.restore();}
+});
+function mergeCookies(cookie, response) {
+ const jar=new Map(cookie.split(';').filter(Boolean).map(c=>{const [k,...v]=c.trim().split('=');return [k,v.join('=')];}));
+ for(const c of response.headers.getSetCookie()){const [k,...v]=c.split(';')[0].split('=');if(v.join('='))jar.set(k,v.join('='));else jar.delete(k);}
+ return [...jar].map(([k,v])=>k+'='+v).join('; ');
+}
+async function csrfBootstrap(cookie='') {
+ await ready;const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/csrf-token',{headers:{Origin:'https://www.eternalbotanic.com',Cookie:cookie}});
+ assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
+ return {cookie:mergeCookies(cookie,response),token:(await response.json()).csrfToken};
+}
+async function csrfWrite(path, body, state) {
+ return fetch('http://127.0.0.1:'+server.address().port+path,{method:'POST',headers:{Origin:'https://www.eternalbotanic.com',Cookie:state.cookie,'X-CSRF-Token':state.token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+}
+test('CSRF tokens reject forged values and different anonymous sessions',async()=>{
+ const a=await csrfBootstrap(),b=await csrfBootstrap();
+ let r=await csrfWrite('/api/auth/logout',{}, {cookie:a.cookie.replace(a.token,'forged'),token:'forged'});assert.equal(r.status,403);
+ r=await csrfWrite('/api/auth/logout',{}, {cookie:b.cookie.replace(b.token,a.token),token:a.token});assert.equal(r.status,403);
+ r=await csrfWrite('/api/auth/logout',{},a);assert.equal(r.status,200);
+});
+test('login and logout refresh session-bound CSRF tokens safely',async()=>{
+ const bcrypt=require('bcryptjs');const hash=await bcrypt.hash('Password1',4);
+ const find=mock.method(User,'findOne',async()=>({_id:'507f1f77bcf86cd799439011',email:'user@example.test',name:'User',role:'user',password:hash}));
+ try {
+  const anonymous=await csrfBootstrap();const login=await csrfWrite('/api/auth/login',{email:'user@example.test',password:'Password1'},anonymous);assert.equal(login.status,200);
+  const authenticatedCookie=mergeCookies(anonymous.cookie,login);
+  const stale=await csrfWrite('/api/auth/logout',{}, {cookie:authenticatedCookie,token:anonymous.token});assert.equal(stale.status,403);
+  const authenticated=await csrfBootstrap(authenticatedCookie);assert.notEqual(authenticated.token,anonymous.token);
+  const logout=await csrfWrite('/api/auth/logout',{},authenticated);assert.equal(logout.status,200);
+  const afterLogout=await csrfBootstrap(mergeCookies(authenticated.cookie,logout));assert.notEqual(afterLogout.token,authenticated.token);
+  assert.equal((await csrfWrite('/api/auth/logout',{},afterLogout)).status,200);
+ }finally{find.mock.restore();}
+});
+test('token endpoint refuses hostile origins and supports same-origin Referer requests',async()=>{
+ for(const headers of [{Origin:'https://attacker.example'},{Origin:'https://www.eternalbotanic.com.attacker.example'},{Referer:'https://attacker.example/page'},{}]){
+  const r=await fetch('http://127.0.0.1:'+server.address().port+'/api/csrf-token',{headers});assert.equal(r.status,403);assert.equal(r.headers.get('access-control-allow-origin'),null);assert.ok(!(await r.text()).includes('csrfToken'));
+ }
+ const trusted=await fetch('http://127.0.0.1:'+server.address().port+'/api/csrf-token',{headers:{Referer:'https://www.eternalbotanic.com/login'}});assert.equal(trusted.status,200);
 });
 test('admin endpoints are covered by a bounded rate limiter',async()=>{
  const call=mock.method(Order,'find',()=>({sort:()=>({limit:async()=>[]})}));

@@ -29,7 +29,7 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
 
   const loadProducts = async () => {
     try {
-      const res = await axios.get("/api/products");
+      const res = await axios.get("/products");
       const sorted = res.data.products
         .filter((p: Product) => p._id)
         .sort((a: Product, b: Product) => a.order - b.order);
@@ -53,7 +53,7 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
 
     setProducts(reordered);
     const productIds = reordered.map((p) => p._id);
-    axios.patch("/api/products/rearrange", { productIds });
+    axios.patch("/products/rearrange", { productIds });
   };
 
   const startEdit = (product: Product) => {
@@ -84,7 +84,7 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
   const saveEdit = async () => {
     if (!editingProductId) return;
     try {
-      await axios.put(`/api/products/${editingProductId}`, {
+      await axios.put(`/products/${editingProductId}`, {
         ...editForm,
         price: Number(editForm.price),
       });
@@ -99,7 +99,7 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
   const deleteProduct = async (id: string) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
     try {
-      await axios.delete(`/api/products/${id}`);
+      await axios.delete(`/products/${id}`);
       await loadProducts();
     } catch {
       alert("Error deleting product");
