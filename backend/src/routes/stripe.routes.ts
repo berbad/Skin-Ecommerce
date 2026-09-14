@@ -5,6 +5,7 @@ import express, { Request, Response } from "express";
 import Stripe from "stripe";
 import { authMiddleware } from "../middleware/auth.middleware";
 import Order from "../models/Order";
+import Product from "../models/product.model";
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {});
@@ -18,22 +19,30 @@ router.post(
   authMiddleware,
   async (req: AuthedRequest, res: Response): Promise<void> => {
     try {
-      const { items } = req.body;
-
-      const line_items = (items || []).map((item: any) => ({
-        price_data: {
-          currency: "usd",
-          product_data: { name: String(item.name) },
-          unit_amount: Math.round(Number(item.price) * 100),
-        },
-        quantity: Number(item.quantity) || 1,
+      const submitted = req.body?.items;
+      if (!Array.isArray(submitted) || submitted.length === 0 || submitted.length > 100) {
+        res.status(400).json({ message: "Invalid cart" }); return;
+      }
+      const items = [];
+      const seen = new Set<string>();
+      for (const item of submitted) {
+        const id = item?.id ?? item?.productId;
+        if (typeof id !== "string" || !/^[a-fA-F0-9]{24}$/.test(id) || seen.has(id) ||
+            !Number.isSafeInteger(item.quantity) || item.quantity < 1 || item.quantity > 1000) {
+          res.status(400).json({ message: "Invalid cart item" }); return;
+        }
+        seen.add(id);
+        const product = await Product.findById(id);
+        if (!product || !Number.isFinite(product.price) || product.price < 0 || product.stock < item.quantity) {
+          res.status(400).json({ message: "Product unavailable" }); return;
+        }
+        items.push({ id, productId: id, name: product.name, price: product.price, quantity: item.quantity });
+      }
+      const line_items = items.map(item => ({
+        price_data: { currency: "usd", product_data: { name: item.name }, unit_amount: Math.round(item.price * 100) },
+        quantity: item.quantity,
       }));
-
-      const total = (items || []).reduce(
-        (acc: number, it: any) =>
-          acc + Number(it.price) * Number(it.quantity || 1),
-        0
-      );
+      const total = items.reduce((acc, item) => acc + Math.round(item.price * 100) * item.quantity, 0) / 100;
 
       const session = await stripe.checkout.sessions.create({
         mode: "payment",
@@ -66,7 +75,7 @@ router.post(
 
       res.status(200).json({ url: session.url });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -78,17 +87,23 @@ router.get(
   async (req: AuthedRequest, res: Response): Promise<void> => {
     try {
       const session = await stripe.checkout.sessions.retrieve(
-        req.params.sessionId,
+        String(req.params.sessionId),
         {
           expand: ["line_items"],
         }
       );
 
+      if (session.metadata?.userId !== req.user?.id) {
+        res.status(404).json({ message: "Session not found" }); return;
+      }
+      // Only Stripe-confirmed payments can be recorded as paid.
+      if (session.payment_status !== "paid") { res.status(200).json({ session }); return; }
+
       const metaItems = session.metadata?.items
         ? JSON.parse(session.metadata.items)
         : [];
       const userId = session.metadata?.userId || req.user?.id || "guest";
-      const total = parseFloat(session.metadata?.total || "0");
+      const total = (session.amount_total || 0) / 100;
 
       const existing = await Order.findById(session.id);
       if (!existing && Array.isArray(metaItems) && metaItems.length) {
@@ -109,7 +124,7 @@ router.get(
 
       res.status(200).json({ session });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }

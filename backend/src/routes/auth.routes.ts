@@ -30,8 +30,8 @@ const getCookieOptions = () => {
 // Login
 router.post(
   "/login",
-  body("email").isEmail().normalizeEmail(),
-  body("password").notEmpty().withMessage("Password is required"),
+  body("email").isString().bail().isEmail().normalizeEmail(),
+  body("password").isString().bail().notEmpty().withMessage("Password is required"),
   async (req: Request, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -45,7 +45,8 @@ router.post(
     try {
       const { email, password } = req.body;
 
-      const user = await User.findOne({ email });
+      if (typeof email !== "string" || typeof password !== "string") { res.status(400).json({message: "Invalid credentials"}); return; }
+      const user = await User.findOne({ email: { $eq: email } });
       const isMatch = user && (await bcrypt.compare(password, user.password));
 
       if (!user || !isMatch) {
@@ -74,7 +75,7 @@ router.post(
       });
 
       console.log("Cookie set with options:", cookieOptions);
-      console.log("Cookie value:", token.substring(0, 20) + "...");
+
 
       res.status(200).json({
         success: true,
@@ -88,7 +89,7 @@ router.post(
         },
       });
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login error:");
       res.status(500).json({
         success: false,
         message: "Error logging in",
@@ -102,13 +103,6 @@ router.post(
   "/logout",
   async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
-      const { cart } = req.body;
-
-      if (req.user?.id && cart) {
-        await User.findByIdAndUpdate(req.user.id, { cart });
-        console.log("Cart saved for user:", req.user.id);
-      }
-
       const cookieOptions = {
         httpOnly: true,
         secure: true,
@@ -128,7 +122,7 @@ router.post(
         message: "Logged out successfully",
       });
     } catch (err) {
-      console.error("Logout error:", err);
+      console.error("Logout error:");
 
       res.clearCookie("token", {
         httpOnly: true,
@@ -149,8 +143,9 @@ router.post(
 // Register
 router.post(
   "/register",
-  body("email").isEmail().normalizeEmail(),
+  body("email").isString().bail().isEmail().normalizeEmail(),
   body("password")
+    .isString().bail()
     .isLength({ min: 8 })
     .withMessage("Password must be at least 8 characters")
     .matches(/[A-Z]/)
@@ -159,7 +154,7 @@ router.post(
     .withMessage("Password must contain at least one lowercase letter")
     .matches(/[0-9]/)
     .withMessage("Password must contain at least one number"),
-  body("name").trim().isLength({ min: 1, max: 100 }),
+  body("name").isString().bail().trim().isLength({ min: 1, max: 100 }),
   async (req: Request, res: Response): Promise<void> => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -173,7 +168,8 @@ router.post(
     try {
       const { email, password, name } = req.body;
 
-      const existingUser = await User.findOne({ email });
+      if (typeof email !== "string" || typeof password !== "string" || typeof name !== "string") { res.status(400).json({message: "Invalid registration"}); return; }
+      const existingUser = await User.findOne({ email: { $eq: email } });
       if (existingUser) {
         res
           .status(400)
@@ -195,7 +191,7 @@ router.post(
         user: { id: newUser._id, email: newUser.email, name: newUser.name },
       });
     } catch (error) {
-      console.error("Registration error:", error);
+      console.error("Registration error:");
       res.status(500).json({
         success: false,
         message: "Error registering user",
@@ -218,11 +214,7 @@ router.get(
         role: req.user?.role,
         name: req.user?.name,
       },
-      cookies: req.cookies,
-      headers: {
-        cookie: req.headers.cookie,
-        origin: req.headers.origin,
-      },
+
     });
   }
 );

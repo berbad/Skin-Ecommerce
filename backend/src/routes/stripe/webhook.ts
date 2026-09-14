@@ -85,7 +85,7 @@ const sendAdminNotification = async (orderDetails: {
     );
     console.log("✅ Admin notification sent successfully to:", adminEmail);
   } catch (err: any) {
-    console.error("❌ Failed to send admin notification:", err.message);
+    console.error("❌ Failed to send admin notification:");
   }
 };
 
@@ -111,13 +111,17 @@ router.post(
       );
       console.log("✅ Webhook verified:", event.type, "ID:", event.id);
     } catch (err: any) {
-      console.error("❌ Webhook signature verification failed:", err.message);
-      res.status(400).send(`Webhook Error: ${err.message}`);
+      console.error("❌ Webhook signature verification failed:");
+      res.status(400).type("text/plain").send("Invalid webhook signature");
       return;
     }
 
-    if (event.type === "checkout.session.completed") {
+    if (event.type === "checkout.session.completed" || event.type === "checkout.session.async_payment_succeeded") {
       const session = event.data.object as Stripe.Checkout.Session;
+      // Delayed payment methods complete checkout before funds are confirmed.
+      if (session.payment_status !== "paid") {
+        res.status(200).json({ received: true }); return;
+      }
 
       console.log("💳 Processing checkout session:", session.id);
       console.log("Customer email:", session.customer_details?.email);
@@ -135,7 +139,7 @@ router.post(
           productId: (item.price?.product as string) || "unknown",
           name: item.description || "Unknown Product",
           quantity: item.quantity || 1,
-          price: item.amount_total ? item.amount_total / 100 : 0,
+          price: item.amount_total ? item.amount_total / 100 / (item.quantity || 1) : 0,
         }));
 
         const total =
@@ -260,12 +264,14 @@ router.post(
 
           console.log("✅ All webhook processing completed successfully");
         } catch (err: any) {
-          console.error("❌ Failed to save order or send emails:", err.message);
-          console.error("Full error:", err);
+          console.error("❌ Failed to save order or send emails:");
+          res.status(500).json({ received: false });
+          return;
         }
       } catch (err: any) {
-        console.error("❌ Failed to process order:", err.message);
-        console.error("Full error:", err);
+        console.error("❌ Failed to process order:");
+        res.status(500).json({ received: false });
+        return;
       }
     } else {
       console.log("ℹ️ Unhandled webhook event type:", event.type);

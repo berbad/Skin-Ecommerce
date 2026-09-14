@@ -7,7 +7,7 @@ class ProductController {
       const products = await Product.find({}).sort({ order: 1 });
       res.json({ products });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -21,7 +21,7 @@ class ProductController {
       }
       res.json({ product });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -30,8 +30,8 @@ class ProductController {
     req: Request & { file?: Express.Multer.File },
     res: Response
   ): Promise<void> {
-    console.log("createProduct body:", req.body);
-    console.log("createProduct file:", req.file);
+
+
 
     try {
       const {
@@ -68,7 +68,7 @@ class ProductController {
       await newProduct.save();
       res.status(201).json({ product: newProduct });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -114,7 +114,7 @@ class ProductController {
       await product.save();
       res.json({ product });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -122,18 +122,18 @@ class ProductController {
   static async rearrangeProducts(req: Request, res: Response): Promise<void> {
     try {
       const { productIds } = req.body;
-      if (!Array.isArray(productIds)) {
+      if (!Array.isArray(productIds) || productIds.length > 1000 || !productIds.every((id: unknown) => typeof id === "string" && /^[a-fA-F0-9]{24}$/.test(id))) {
         res.status(400).json({ message: "Invalid productIds array" });
         return;
       }
 
       for (let i = 0; i < productIds.length; i++) {
-        await Product.findByIdAndUpdate(productIds[i], { order: i });
+        await Product.findByIdAndUpdate(String(productIds[i]), { order: i });
       }
 
       res.json({ message: "Products reordered" });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }
@@ -143,7 +143,7 @@ class ProductController {
       await Product.findByIdAndDelete(req.params.id);
       res.json({ message: "Product deleted" });
     } catch (error) {
-      console.error("Internal error:", error);
+      console.error("Internal error:");
       res.status(500).json({ success: false, message: "Something went wrong" });
     }
   }

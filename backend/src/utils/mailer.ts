@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 
 transporter.verify((error, success) => {
   if (error) {
-    console.error("❌ Email transporter verification failed:", error);
+    console.error("❌ Email transporter verification failed:");
   } else {
     console.log("✅ Email transporter is ready");
   }
@@ -39,7 +39,7 @@ export const sendReceiptEmail = async (
     return info;
   } catch (error: any) {
     console.error(`❌ Email failed to ${to}:`, error.message);
-    console.error("Full error:", error);
+    console.error("Full error:");
     throw error;
   }
 };

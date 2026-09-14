@@ -14,7 +14,7 @@ router.get("/orders", authMiddleware, isAdminMiddleware, async (req, res) => {
       orders,
     });
   } catch (error) {
-    console.error("Internal error:", error);
+    console.error("Internal error:");
     res.status(500).json({ success: false, message: "Something went wrong" });
   }
 });
