@@ -25,7 +25,7 @@ instance.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 instance.interceptors.response.use(
@@ -47,29 +47,16 @@ instance.interceptors.response.use(
       message: error.message,
     });
 
-    if (status === 401 || status === 403) {
-      console.error("Authentication error:", status);
-
-      localStorage.clear();
-      sessionStorage.clear();
-
-      document.cookie.split(";").forEach((c) => {
-        document.cookie = c
-          .replace(/^ +/, "")
-          .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
-      });
-
-      if (
-        typeof window !== "undefined" &&
-        !window.location.pathname.includes("/login") &&
-        !window.location.pathname.includes("/register")
-      ) {
-        window.location.href = "/login";
-      }
+    if (
+      status === 401 &&
+      typeof window !== "undefined" &&
+      !["/login", "/register"].includes(window.location.pathname)
+    ) {
+      window.location.href = "/login";
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default instance;

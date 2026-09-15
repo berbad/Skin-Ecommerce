@@ -1,192 +1,106 @@
 import express from "express";
-import { Response } from "express";
+import mongoose from "mongoose";
+import { z } from "zod";
 import {
   authMiddleware,
   AuthenticatedRequest,
 } from "../middleware/auth.middleware";
 import User from "../models/user.model";
-
+import Product from "../models/product.model";
+import { objectIdSchema, quantitySchema } from "../security/validation";
 const router = express.Router();
-
-// Get user's cart
-router.get(
-  "/",
-  authMiddleware,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      if (!req.user) {
-        return void res
-          .status(401)
-          .json({ success: false, message: "Unauthorized" });
-      }
-
-      const user = await User.findById(req.user.id).select("cart");
-      if (!user) {
-        return void res
-          .status(404)
-          .json({ success: false, message: "User not found" });
-      }
-
-      return void res.status(200).json({
-        success: true,
-        cart: user.cart,
-      });
-    } catch (error) {
-      console.error("Internal error:");
-      res.status(500).json({ success: false, message: "Something went wrong" });
-    }
+router.use(authMiddleware);
+const itemSchema = z
+  .object({ productId: objectIdSchema, quantity: quantitySchema })
+  .strict();
+router.get("/", async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const user = await User.findById(req.user!.id).select("cart");
+    res.json({ success: true, cart: user?.cart || [] });
+  } catch (err) {
+    next(err);
   }
-);
-
-// Add item to cart
-router.post(
-  "/items",
-  authMiddleware,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      if (!req.user) {
-        return void res
-          .status(401)
-          .json({ success: false, message: "Unauthorized" });
+});
+async function change(
+  req: AuthenticatedRequest,
+  res: express.Response,
+  next: express.NextFunction,
+  operation: "add" | "set" | "remove" | "clear",
+) {
+  try {
+    let id = "",
+      quantity = 0;
+    if (operation === "add") {
+      const value = itemSchema.safeParse(req.body);
+      if (!value.success) {
+        res.status(400).json({ message: "Invalid cart item" });
+        return;
       }
-      const { productId, quantity } = req.body;
-      if (!productId || !quantity) {
-        return void res
-          .status(400)
-          .json({ success: false, message: "Missing productId or quantity" });
+      id = value.data.productId;
+      quantity = value.data.quantity;
+    } else if (operation !== "clear") {
+      const value = objectIdSchema.safeParse(req.params.productId);
+      if (!value.success) {
+        res.status(400).json({ message: "Invalid product" });
+        return;
       }
-
-      const user = await User.findById(req.user.id);
-      if (!user) {
-        return void res
-          .status(404)
-          .json({ success: false, message: "User not found" });
+      id = value.data;
+      if (operation === "set") {
+        const value = z
+          .object({ quantity: quantitySchema })
+          .strict()
+          .safeParse(req.body);
+        if (!value.success) {
+          res.status(400).json({ message: "Invalid quantity" });
+          return;
+        }
+        quantity = value.data.quantity;
       }
-
-      const existingItemIndex = user.cart.findIndex(
-        (item) => item.productId === productId
-      );
-      if (existingItemIndex >= 0) {
-        user.cart[existingItemIndex].quantity += quantity;
-      } else {
-        user.cart.push({ productId, quantity });
-      }
-
-      await user.save();
-
-      return void res.status(200).json({ success: true, cart: user.cart });
-    } catch (error) {
-      console.error("Internal error:");
-      res.status(500).json({ success: false, message: "Something went wrong" });
     }
-  }
-);
-
-// Update cart item quantity
-router.put(
-  "/items/:productId",
-  authMiddleware,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      if (!req.user) {
-        return void res
-          .status(401)
-          .json({ success: false, message: "Unauthorized" });
+    let cart: unknown = [];
+    await mongoose.connection.transaction(async (session) => {
+      const user = await User.findById(req.user!.id).session(session);
+      if (!user) throw new Error("Account unavailable");
+      if (operation === "clear") user.cart = [];
+      else if (operation === "remove")
+        user.cart = user.cart.filter((i) => i.productId !== id);
+      else {
+        if (!(await Product.exists({ _id: id }).session(session)))
+          throw Object.assign(new Error("Product unavailable"), {
+            status: 400,
+          });
+        const item = user.cart.find((i) => i.productId === id);
+        const updated =
+          operation === "add" ? (item?.quantity || 0) + quantity : quantity;
+        if (
+          !Number.isSafeInteger(updated) ||
+          updated > 1000 ||
+          (!item && user.cart.length >= 100)
+        )
+          throw Object.assign(new Error("Cart limit exceeded"), {
+            status: 400,
+          });
+        if (item) item.quantity = updated;
+        else user.cart.push({ productId: id, quantity: updated });
       }
-
-      const { productId } = req.params;
-      const { quantity } = req.body;
-
-      if (!quantity) {
-        return void res
-          .status(400)
-          .json({ success: false, message: "Missing quantity" });
-      }
-
-      const user = await User.findById(req.user.id);
-      if (!user) {
-        return void res
-          .status(404)
-          .json({ success: false, message: "User not found" });
-      }
-
-      const item = user.cart.find((item) => item.productId === productId);
-      if (!item) {
-        return void res
-          .status(404)
-          .json({ success: false, message: "Product not in cart" });
-      }
-
-      item.quantity = quantity;
-      await user.save();
-
-      return void res.status(200).json({ success: true, cart: user.cart });
-    } catch (error) {
-      console.error("Internal error:");
-      res.status(500).json({ success: false, message: "Something went wrong" });
+      await user.save({ session });
+      cart = user.cart;
+    });
+    res.json({ success: true, cart });
+  } catch (err) {
+    if ((err as { status?: number }).status === 400) {
+      res.status(400).json({ message: (err as Error).message });
+      return;
     }
+    next(err);
   }
+}
+router.post("/items", (req, res, next) => change(req, res, next, "add"));
+router.put("/items/:productId", (req, res, next) =>
+  change(req, res, next, "set"),
 );
-
-// Remove item from cart
-router.delete(
-  "/items/:productId",
-  authMiddleware,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      if (!req.user) {
-        return void res
-          .status(401)
-          .json({ success: false, message: "Unauthorized" });
-      }
-
-      const { productId } = req.params;
-      const user = await User.findById(req.user.id);
-      if (!user) {
-        return void res
-          .status(404)
-          .json({ success: false, message: "User not found" });
-      }
-
-      user.cart = user.cart.filter((item) => item.productId !== productId);
-      await user.save();
-
-      return void res.status(200).json({ success: true, cart: user.cart });
-    } catch (error) {
-      console.error("Internal error:");
-      res.status(500).json({ success: false, message: "Something went wrong" });
-    }
-  }
+router.delete("/items/:productId", (req, res, next) =>
+  change(req, res, next, "remove"),
 );
-
-// Clear cart
-router.delete(
-  "/",
-  authMiddleware,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      if (!req.user) {
-        return void res
-          .status(401)
-          .json({ success: false, message: "Unauthorized" });
-      }
-
-      const user = await User.findById(req.user.id);
-      if (!user) {
-        return void res
-          .status(404)
-          .json({ success: false, message: "User not found" });
-      }
-
-      user.cart = [];
-      await user.save();
-
-      return void res.status(200).json({ success: true, cart: user.cart });
-    } catch (error) {
-      console.error("Internal error:");
-      res.status(500).json({ success: false, message: "Something went wrong" });
-    }
-  }
-);
-
+router.delete("/", (req, res, next) => change(req, res, next, "clear"));
 export default router;

@@ -2,8 +2,8 @@
 
 import AddProductForm from "./AddProductForm";
 import AdminProductList from "./AdminProductList";
-import axios from "axios";
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import AdminProductTable from "./AdminProductTable";
 
 export default function AdminPageContent() {

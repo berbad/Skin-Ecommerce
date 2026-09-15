@@ -5,11 +5,12 @@
   "proxy": "http://localhost:5000",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "next build && node scripts/verify-security-build.cjs",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src next.config.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

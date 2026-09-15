@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { Button } from "@/components/ui/button";
@@ -62,14 +63,10 @@ export default function EditProfilePage() {
       setSaving(true);
       const res = await axios.put(
         "/auth/profile",
-        { name, email, address },
-        { withCredentials: true }
+        { name, address },
+        { withCredentials: true },
       );
-      if (res.data?.user) {
-        await refresh;
-      } else {
-        await refresh();
-      }
+      if (res.data?.user) await refresh();
       router.push("/account");
     } catch (err) {
       console.error("Failed to update profile", err);
@@ -111,10 +108,7 @@ export default function EditProfilePage() {
           <Button variant="outline" onClick={() => router.push("/account")}>
             Cancel
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-          >
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
@@ -135,10 +129,17 @@ export default function EditProfilePage() {
           <label className="text-sm font-medium">Email</label>
           <Input
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            readOnly
+            aria-label="Current email"
             placeholder="you@example.com"
             type="email"
           />
+          <Link
+            href="/account/security"
+            className="text-sm text-brand underline"
+          >
+            Change email securely
+          </Link>
         </div>
       </section>
 

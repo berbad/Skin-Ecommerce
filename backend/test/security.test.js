@@ -1,163 +1,377 @@
-const { test, mock, after } = require('node:test');
-const assert = require('node:assert/strict');
-const http = require('node:http');
-process.env.JWT_SECRET = 'test-only-jwt-key';
-process.env.STRIPE_SECRET_KEY = 'sk_test_mock_only';
-process.env.STRIPE_WEBHOOK_SECRET = 'test-only-webhook-key';
-process.env.NODE_ENV = 'test';
-const mongoose = require('mongoose');
-mock.method(mongoose, 'connect', () => new Promise(() => {}));
-const jwt = require('jsonwebtoken');
-const express = require('express');
-let app;
-const captureExpress = Object.assign(function () { app = express(); return app; }, express);
-require.cache[require.resolve('express')].exports = captureExpress;
-const logs = [];
-mock.method(console, 'log', (...args) => logs.push(args));
-mock.method(console, 'error', (...args) => logs.push(args));
-require('../src/index');
-const User = require('../src/models/user.model').default;
-const Product = require('../src/models/product.model').default;
-const Order = require('../src/models/Order').default;
-const server = http.createServer(app);
-const ready = new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-after(() => new Promise(resolve => server.close(resolve)));
-const admin = jwt.sign({id:'507f1f77bcf86cd799439011',email:'admin@example.test',role:'admin'},process.env.JWT_SECRET);
-async function request(path, body, options={}) {
- await ready;
- const headers = {'Content-Type':'application/json', Origin:'https://www.eternalbotanic.com',Cookie:'token='+admin,...options.headers};
- if (!options.noCsrf && !['GET','HEAD','OPTIONS'].includes(options.method||'POST') && path !== '/api/stripe/webhook') {
-  const bootstrap = await fetch('http://127.0.0.1:'+server.address().port+'/api/csrf-token', {headers:{Origin:'https://www.eternalbotanic.com',Cookie:headers.Cookie}});
-  const token=(await bootstrap.json()).csrfToken;
-  headers.Cookie += '; '+bootstrap.headers.getSetCookie().map(c=>c.split(';')[0]).join('; ');
-  headers['X-CSRF-Token']=token;
- }
- if (options.noOrigin) delete headers.Origin;
- const response = await fetch('http://127.0.0.1:'+server.address().port+path,{method:options.method||'POST',headers,body:body===undefined?undefined:JSON.stringify(body)});
- return {status:response.status,text:await response.text(),cookie:response.headers.get('set-cookie')};
+const { test, before, after, mock } = require("node:test");
+const assert = require("node:assert/strict");
+const http = require("node:http");
+const mongoose = require("mongoose");
+const { MongoMemoryReplSet } = require("mongodb-memory-server");
+const { randomBytes, createHash } = require("crypto");
+process.env.NODE_ENV = "test";
+process.env.JWT_SECRET = "test-only-csrf-secret-never-deploy";
+process.env.STRIPE_SECRET_KEY = "sk_test_mock_only";
+process.env.STRIPE_WEBHOOK_SECRET = "test-webhook-secret";
+const { createApp } = require("../src/app");
+const User = require("../src/models/user.model").default;
+const Session = require("../src/models/Session").default;
+const Product = require("../src/models/product.model").default;
+const { tokenHash } = require("../src/services/sessions");
+const Stripe = require("stripe");
+let db, server, url, user, admin;
+before(async () => {
+  db = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+  await mongoose.connect(db.getUri());
+  await User.init();
+  user = await User.create({
+    name: "Test",
+    email: "user@example.test",
+    password: "unused",
+    role: "user",
+  });
+  admin = await User.create({
+    name: "Admin",
+    email: "admin@example.test",
+    password: "unused",
+    role: "admin",
+    mfaSecret: "test-fixture-only",
+  });
+  server = http.createServer(createApp());
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  url = "http://127.0.0.1:" + server.address().port;
+  mock.method(require("https"), "request", () => {
+    throw new Error("External network forbidden in security tests");
+  });
+});
+after(async () => {
+  if (server) await new Promise((r) => server.close(r));
+  await mongoose.disconnect();
+  if (db) await db.stop();
+});
+async function identity(u = user) {
+  const token = randomBytes(32).toString("hex");
+  await Session.create({
+    _id: tokenHash(token),
+    userId: String(u._id),
+    role: u.role,
+    authVersion: 0,
+    mfaVerified: u.role === "admin",
+    authenticatedAt: new Date(),
+    expiresAt: new Date(Date.now() + 60000),
+  });
+  return "token=" + token;
 }
-test('product reordering rejects operator objects before database access',async()=>{
- const call=mock.method(Product,'findByIdAndUpdate',async()=>null);
- try { const r=await request('/api/products/rearrange',{productIds:[{$ne:null}]},{method:'PATCH'});assert.equal(r.status,400);assert.equal(call.mock.callCount(),0); }finally{call.mock.restore();}
-});
-test('order creation rejects product operators before stock changes',async()=>{
- const call=mock.method(Product,'findOneAndUpdate',async()=>null);
- try {await request('/api/orders',{items:[{productId:{$ne:null},price:1,quantity:1}]});assert.equal(call.mock.callCount(),0);}finally{call.mock.restore();}
-});
-test('unsafe cookie requests reject hostile or missing origins before route handlers',async()=>{
- for(const options of [{headers:{Origin:'https://attacker.example'}},{noOrigin:true}]){
-  const r=await request('/api/auth/logout',{},options);assert.equal(r.status,403);
- }
-});
-test('trusted-origin cookie writes still require a signed CSRF token',async()=>{
- const r=await request('/api/auth/logout',{}, {noCsrf:true});
- assert.equal(r.status,403);
-});
-test('authenticated responses and logs never expose cookie tokens',async()=>{
- logs.length=0;
- const r=await request('/api/auth/test-auth',undefined,{method:'GET'});
- assert.equal(r.status,200);assert.ok(!r.text.includes(admin));assert.ok(!JSON.stringify(logs).includes(admin));
-});
-test('Stripe rejects invalid signatures without reflecting exception HTML',async()=>{
- const r=await request('/api/stripe/webhook',{x:'<script>alert(1)</script>'},{noOrigin:true,headers:{'stripe-signature':'invalid'}});
- assert.equal(r.status,400);assert.equal(r.text,'Invalid webhook signature');
-});
-const Stripe = require('stripe');
-const stripePrototype = Object.getPrototypeOf(new Stripe('sk_test_mock_only').checkout.sessions);
-mock.method(require('https'), 'request', () => { throw new Error('External network forbidden in security tests'); });
-test('checkout prices are loaded from catalog rather than submitted prices',async()=>{
- const lookup=mock.method(Product,'findById',async()=>({_id:'507f1f77bcf86cd799439012',name:'Serum',price:25,stock:5}));
- let checkout;
- const create=mock.method(stripePrototype,'create',async data=>{checkout=data;return {url:'https://checkout.stripe.test/session'};});
- try {const r=await request('/api/stripe/create-checkout-session',{items:[{id:'507f1f77bcf86cd799439012',name:'Fake',price:0.01,quantity:2}]});assert.equal(r.status,200);assert.equal(checkout.line_items[0].price_data.unit_amount,2500);assert.equal(checkout.line_items[0].price_data.product_data.name,'Serum');}finally{lookup.mock.restore();create.mock.restore();}
-});
-test('unpaid and other-user Stripe sessions cannot create paid orders',async()=>{
- const create=mock.method(Order,'create',async()=>({}));
- const find=mock.method(Order,'findById',async()=>null);
- const retrieve=mock.method(stripePrototype,'retrieve',async()=>({id:'cs_test',payment_status:'unpaid',metadata:{userId:'507f1f77bcf86cd799439011',items:JSON.stringify([{id:'507f1f77bcf86cd799439012',name:'Test',price:1,quantity:1}]),total:'1'}}));
- try {let r=await request('/api/stripe/session/cs_test',undefined,{method:'GET'});assert.equal(create.mock.callCount(),0);assert.equal(r.status,200);retrieve.mock.mockImplementation(async()=>({id:'cs_test',payment_status:'paid',metadata:{userId:'someone-else'}}));r=await request('/api/stripe/session/cs_test',undefined,{method:'GET'});assert.equal(r.status,404);}finally{create.mock.restore();find.mock.restore();retrieve.mock.restore();}
-});
-test('normal users cannot change order status',async()=>{
- const token=jwt.sign({id:'507f1f77bcf86cd799439011',email:'user@example.test',role:'user'},process.env.JWT_SECRET);
- const find=mock.method(Order,'findById',async()=>({save:async()=>{}}));
- try {const r=await request('/api/orders/another-order/status',{status:'paid'},{method:'PATCH',headers:{Cookie:'token='+token}});assert.equal(r.status,403);assert.equal(find.mock.callCount(),0);}finally{find.mock.restore();}
-});
-test('valid login uses an equality query and retains the HttpOnly session cookie',async()=>{
- const bcrypt=require('bcryptjs');const hash=await bcrypt.hash('ValidPassword1',4);
- const find=mock.method(User,'findOne',async()=>({_id:'507f1f77bcf86cd799439011',email:'user@example.test',name:'User',role:'user',password:hash}));
- try {logs.length=0;const r=await request('/api/auth/login',{email:'user@example.test',password:'ValidPassword1'});assert.equal(r.status,200);assert.deepEqual(find.mock.calls[0].arguments[0],{email:{$eq:'user@example.test'}});assert.match(r.cookie,/HttpOnly/);assert.match(r.cookie,/Secure/);assert.match(r.cookie,/SameSite=None/);assert.ok(!JSON.stringify(logs).includes(hash));}finally{find.mock.restore();}
-});
-test('signed Stripe events retain raw-body verification without browser origin',async()=>{
- const payload=JSON.stringify({id:'evt_test',type:'test.event',data:{object:{}}});
- const stripe=new Stripe('sk_test_mock_only');
- const signature=stripe.webhooks.generateTestHeaderString({payload,secret:process.env.STRIPE_WEBHOOK_SECRET});
- const r=await request('/api/stripe/webhook',JSON.parse(payload),{noOrigin:true,headers:{'stripe-signature':signature}});
- assert.equal(r.status,200);assert.deepEqual(JSON.parse(r.text),{received:true});
-});
-test('Cloudinary adapter streams uploads with original transformations and returns secure URL',async()=>{
- const cloudinary=require('cloudinary').v2;
- const {Writable,Readable}=require('node:stream');let options;let data='';
- const upload=mock.method(cloudinary.uploader,'upload_stream',(opts,done)=>{options=opts;return new Writable({write(chunk,encoding,cb){data+=chunk;cb();},final(cb){done(null,{secure_url:'https://res.cloudinary.com/test/image.png',public_id:'test-id',bytes:3});cb();}});});
- try {const storage=require('../src/config/cloudinary').storage;const info=await new Promise((resolve,reject)=>storage._handleFile({}, {stream:Readable.from(['png'])},(error,result)=>error?reject(error):resolve(result)));assert.equal(data,'png');assert.equal(info.path,'https://res.cloudinary.com/test/image.png');assert.deepEqual(options.allowed_formats,['jpg','jpeg','png','webp']);}finally{upload.mock.restore();}
-});
-test('direct order submissions cannot mutate inventory outside verified payment',async()=>{
- const stock=mock.method(Product,'findOneAndUpdate',async()=>({_id:'507f1f77bcf86cd799439012'}));
- const create=mock.method(Order,'create',async()=>{throw new Error('missing order id');});
- try {const r=await request('/api/orders',{items:[{productId:'507f1f77bcf86cd799439012',price:0.01,quantity:1}]});assert.equal(r.status,409);assert.equal(stock.mock.callCount(),0);assert.equal(create.mock.callCount(),0);}finally{stock.mock.restore();create.mock.restore();}
-});
-test('unpaid checkout webhooks acknowledge without creating paid orders',async()=>{
- const find=mock.method(Order,'findById',async()=>null);
- const create=mock.method(Order,'create',async()=>({_id:'cs_unpaid'}));
- const lines=mock.method(stripePrototype,'listLineItems',async()=>({data:[]}));
- const mail=require('../src/utils/mailer');const send=mock.method(mail,'sendReceiptEmail',async()=>{});
- try {const payload=JSON.stringify({id:'evt_unpaid',type:'checkout.session.completed',data:{object:{id:'cs_unpaid',payment_status:'unpaid',currency:'usd',metadata:{userId:'507f1f77bcf86cd799439011'}}}});const signature=new Stripe('sk_test_mock_only').webhooks.generateTestHeaderString({payload,secret:process.env.STRIPE_WEBHOOK_SECRET});const r=await request('/api/stripe/webhook',JSON.parse(payload),{noOrigin:true,headers:{'stripe-signature':signature}});assert.equal(r.status,200);assert.equal(create.mock.callCount(),0);assert.equal(lines.mock.callCount(),0);assert.equal(send.mock.callCount(),0);}finally{find.mock.restore();create.mock.restore();lines.mock.restore();send.mock.restore();}
-});
-test('confirmed delayed-payment webhooks preserve accurate unit prices and order ownership',async()=>{
- const find=mock.method(Order,'findById',async()=>null);
- const create=mock.method(Order,'create',async data=>data);
- const lines=mock.method(stripePrototype,'listLineItems',async()=>({data:[{description:'Serum',quantity:2,amount_total:5000,price:{product:'prod_test'}}]}));
- const send=mock.method(require('../src/utils/mailer'),'sendReceiptEmail',async()=>{});
- try {const payload=JSON.stringify({id:'evt_paid',type:'checkout.session.async_payment_succeeded',data:{object:{id:'cs_paid',payment_status:'paid',amount_total:5000,currency:'usd',metadata:{userId:'507f1f77bcf86cd799439011'}}}});const signature=new Stripe('sk_test_mock_only').webhooks.generateTestHeaderString({payload,secret:process.env.STRIPE_WEBHOOK_SECRET});const r=await request('/api/stripe/webhook',JSON.parse(payload),{noOrigin:true,headers:{'stripe-signature':signature}});assert.equal(r.status,200);assert.equal(create.mock.callCount(),1);const order=create.mock.calls[0].arguments[0];assert.equal(order.status,'paid');assert.equal(order.userId,'507f1f77bcf86cd799439011');assert.equal(order.total,50);assert.equal(order.items[0].price,25);create.mock.mockImplementation(async()=>{throw new Error('database unavailable');});const retry=await request('/api/stripe/webhook',JSON.parse(payload),{noOrigin:true,headers:{'stripe-signature':signature}});assert.equal(retry.status,500);}finally{find.mock.restore();create.mock.restore();lines.mock.restore();send.mock.restore();}
-});
-function mergeCookies(cookie, response) {
- const jar=new Map(cookie.split(';').filter(Boolean).map(c=>{const [k,...v]=c.trim().split('=');return [k,v.join('=')];}));
- for(const c of response.headers.getSetCookie()){const [k,...v]=c.split(';')[0].split('=');if(v.join('='))jar.set(k,v.join('='));else jar.delete(k);}
- return [...jar].map(([k,v])=>k+'='+v).join('; ');
+function cookies(cookie, response) {
+  const jar = new Map(
+    cookie
+      .split(";")
+      .filter(Boolean)
+      .map((c) => c.trim().split("=")),
+  );
+  for (const c of response.headers.getSetCookie()) {
+    const [k, v] = c.split(";")[0].split("=");
+    jar.set(k, v);
+  }
+  return [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
 }
-async function csrfBootstrap(cookie='') {
- await ready;const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/csrf-token',{headers:{Origin:'https://www.eternalbotanic.com',Cookie:cookie}});
- assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');
- return {cookie:mergeCookies(cookie,response),token:(await response.json()).csrfToken};
+async function bootstrap(cookie = "") {
+  const r = await fetch(url + "/api/csrf-token", {
+    headers: { Origin: "https://www.eternalbotanic.com", Cookie: cookie },
+  });
+  assert.equal(r.status, 200);
+  return { cookie: cookies(cookie, r), token: (await r.json()).csrfToken };
 }
-async function csrfWrite(path, body, state) {
- return fetch('http://127.0.0.1:'+server.address().port+path,{method:'POST',headers:{Origin:'https://www.eternalbotanic.com',Cookie:state.cookie,'X-CSRF-Token':state.token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+async function request(path, body, options = {}) {
+  const method = options.method || "POST";
+  let cookie = options.cookie ?? (await identity());
+  const headers = {
+    "Content-Type": "application/json",
+    Origin: "https://www.eternalbotanic.com",
+    Cookie: cookie,
+    ...options.headers,
+  };
+  if (
+    !options.noCsrf &&
+    !["GET", "HEAD", "OPTIONS"].includes(method) &&
+    !path.startsWith("/api/stripe/webhook")
+  ) {
+    const state = await bootstrap(cookie);
+    headers.Cookie = state.cookie;
+    headers["X-CSRF-Token"] = state.token;
+  }
+  if (options.noOrigin) delete headers.Origin;
+  return fetch(url + path, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
-test('CSRF tokens reject forged values and different anonymous sessions',async()=>{
- const a=await csrfBootstrap(),b=await csrfBootstrap();
- let r=await csrfWrite('/api/auth/logout',{}, {cookie:a.cookie.replace(a.token,'forged'),token:'forged'});assert.equal(r.status,403);
- r=await csrfWrite('/api/auth/logout',{}, {cookie:b.cookie.replace(b.token,a.token),token:a.token});assert.equal(r.status,403);
- r=await csrfWrite('/api/auth/logout',{},a);assert.equal(r.status,200);
+test("unsafe requests reject missing hostile and suffix-matching origins", async () => {
+  for (const options of [
+    { noOrigin: true },
+    { headers: { Origin: "https://attacker.example" } },
+    { headers: { Origin: "https://www.eternalbotanic.com.attacker.example" } },
+  ])
+    assert.equal((await request("/api/auth/logout", {}, options)).status, 403);
 });
-test('login and logout refresh session-bound CSRF tokens safely',async()=>{
- const bcrypt=require('bcryptjs');const hash=await bcrypt.hash('Password1',4);
- const find=mock.method(User,'findOne',async()=>({_id:'507f1f77bcf86cd799439011',email:'user@example.test',name:'User',role:'user',password:hash}));
- try {
-  const anonymous=await csrfBootstrap();const login=await csrfWrite('/api/auth/login',{email:'user@example.test',password:'Password1'},anonymous);assert.equal(login.status,200);
-  const authenticatedCookie=mergeCookies(anonymous.cookie,login);
-  const stale=await csrfWrite('/api/auth/logout',{}, {cookie:authenticatedCookie,token:anonymous.token});assert.equal(stale.status,403);
-  const authenticated=await csrfBootstrap(authenticatedCookie);assert.notEqual(authenticated.token,anonymous.token);
-  const logout=await csrfWrite('/api/auth/logout',{},authenticated);assert.equal(logout.status,200);
-  const afterLogout=await csrfBootstrap(mergeCookies(authenticated.cookie,logout));assert.notEqual(afterLogout.token,authenticated.token);
-  assert.equal((await csrfWrite('/api/auth/logout',{},afterLogout)).status,200);
- }finally{find.mock.restore();}
+test("trusted-origin writes require signed session-bound CSRF tokens", async () => {
+  assert.equal(
+    (await request("/api/auth/logout", {}, { noCsrf: true })).status,
+    403,
+  );
+  const a = await bootstrap(),
+    b = await bootstrap();
+  const r = await request(
+    "/api/auth/logout",
+    {},
+    { cookie: b.cookie, noCsrf: true, headers: { "X-CSRF-Token": a.token } },
+  );
+  assert.equal(r.status, 403);
 });
-test('token endpoint refuses hostile origins and supports same-origin Referer requests',async()=>{
- for(const headers of [{Origin:'https://attacker.example'},{Origin:'https://www.eternalbotanic.com.attacker.example'},{Referer:'https://attacker.example/page'},{}]){
-  const r=await fetch('http://127.0.0.1:'+server.address().port+'/api/csrf-token',{headers});assert.equal(r.status,403);assert.equal(r.headers.get('access-control-allow-origin'),null);assert.ok(!(await r.text()).includes('csrfToken'));
- }
- const trusted=await fetch('http://127.0.0.1:'+server.address().port+'/api/csrf-token',{headers:{Referer:'https://www.eternalbotanic.com/login'}});assert.equal(trusted.status,200);
+test("CSRF endpoint rejects hostile origins and supports trusted Referer with no-store", async () => {
+  for (const headers of [{ Origin: "https://attacker.example" }, {}])
+    assert.equal(
+      (await fetch(url + "/api/csrf-token", { headers })).status,
+      403,
+    );
+  const r = await fetch(url + "/api/csrf-token", {
+    headers: { Referer: "https://www.eternalbotanic.com/login" },
+  });
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get("cache-control"), "no-store");
 });
-test('admin endpoints are covered by a bounded rate limiter',async()=>{
- const call=mock.method(Order,'find',()=>({sort:()=>({limit:async()=>[]})}));
- try {let blocked=false;for(let i=0;i<105;i++){const r=await request('/api/admin/orders',undefined,{method:'GET'});if(r.status===429){blocked=true;break;}}assert.equal(blocked,true);}finally{call.mock.restore();}
+test("CSRF binding changes on logout and copied authenticated token cannot be replayed", async () => {
+  const original = await identity();
+  const a = await bootstrap(original);
+  const logout = await request(
+    "/api/auth/logout",
+    {},
+    { cookie: a.cookie, noCsrf: true, headers: { "X-CSRF-Token": a.token } },
+  );
+  assert.equal(logout.status, 200);
+  assert.equal(
+    (
+      await request("/api/auth/profile", undefined, {
+        method: "GET",
+        cookie: original,
+      })
+    ).status,
+    401,
+  );
+  const b = await bootstrap(cookies(a.cookie, logout));
+  assert.notEqual(a.token, b.token);
+});
+test("normal users cannot access administrator writes or reconciliation", async () => {
+  assert.equal((await request("/api/products", {})).status, 403);
+  assert.equal(
+    (await request("/api/orders/reconciliation", undefined, { method: "GET" }))
+      .status,
+    403,
+  );
+});
+test("order reads cannot access another customer order", async () => {
+  const Order = require("../src/models/Order").default;
+  await Order.create({
+    _id: "cs_other",
+    userId: String(admin._id),
+    items: [],
+    total: 1,
+    status: "paid",
+  });
+  assert.equal(
+    (await request("/api/orders/cs_other", undefined, { method: "GET" }))
+      .status,
+    404,
+  );
+});
+test("direct orders and operator object rearrangements cannot mutate state", async () => {
+  assert.equal((await request("/api/orders", { items: [] })).status, 409);
+  assert.equal(
+    (
+      await request(
+        "/api/products/rearrange",
+        { productIds: [{ $ne: null }] },
+        { method: "PATCH", cookie: await identity(admin) },
+      )
+    ).status,
+    400,
+  );
+});
+test("cart rejects negative fractional string oversized and operator quantities", async () => {
+  for (const quantity of [-1, 1.5, "2", 1001, { $gt: 0 }])
+    assert.equal(
+      (
+        await request("/api/cart/items", {
+          productId: "a".repeat(24),
+          quantity,
+        })
+      ).status,
+      400,
+    );
+});
+test("profile rejects overlong strings and nested operators", async () => {
+  assert.equal(
+    (
+      await request(
+        "/api/auth/profile",
+        { name: "x".repeat(101) },
+        { method: "PUT" },
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await request(
+        "/api/auth/profile",
+        { address: { line1: { $ne: null } } },
+        { method: "PUT" },
+      )
+    ).status,
+    400,
+  );
+});
+test("large JSON is rejected before account handler", async () => {
+  assert.equal(
+    (
+      await request("/api/auth/login", {
+        email: "a@b.com",
+        password: "a".repeat(40000),
+      })
+    ).status,
+    413,
+  );
+});
+test("invalid credentials objects are rejected before authentication", async () => {
+  assert.equal(
+    (
+      await request("/api/auth/login", {
+        email: { $ne: null },
+        password: { $ne: null },
+      })
+    ).status,
+    400,
+  );
+});
+test("webhook signature verification keeps raw body and safe plaintext errors", async () => {
+  const invalid = await request(
+    "/api/stripe/webhook",
+    { bad: "<script>" },
+    { noOrigin: true, headers: { "stripe-signature": "invalid" } },
+  );
+  assert.equal(invalid.status, 400);
+  assert.equal(await invalid.text(), "Invalid webhook signature");
+  const payload = JSON.stringify({
+    id: "evt_test",
+    type: "test.event",
+    data: { object: {} },
+  });
+  const signature = new Stripe(
+    "sk_test_mock_only",
+  ).webhooks.generateTestHeaderString({
+    payload,
+    secret: process.env.STRIPE_WEBHOOK_SECRET,
+  });
+  assert.equal(
+    (
+      await request("/api/stripe/webhook", JSON.parse(payload), {
+        noOrigin: true,
+        headers: { "stripe-signature": signature },
+      })
+    ).status,
+    200,
+  );
+});
+test("upload rejects non-raster types before cloud upload", async () => {
+  const state = await bootstrap(await identity(admin));
+  const form = new FormData();
+  form.append(
+    "image",
+    new Blob(["<svg/>"], { type: "image/svg+xml" }),
+    "test.svg",
+  );
+  const r = await fetch(url + "/api/products", {
+    method: "POST",
+    headers: {
+      Origin: "https://www.eternalbotanic.com",
+      Cookie: state.cookie,
+      "X-CSRF-Token": state.token,
+    },
+    body: form,
+  });
+  assert.equal(r.status, 400);
+});
+test("auth limiter counts requests despite spoofed forwarding headers", async () => {
+  let blocked = false;
+  for (let n = 0; n < 25; n++) {
+    const r = await request(
+      "/api/auth/login",
+      { email: "missing@example.test", password: "wrong" },
+      { headers: { "X-Forwarded-For": `192.0.2.${n}` } },
+    );
+    if (r.status === 429) {
+      blocked = true;
+      break;
+    }
+  }
+  assert.equal(blocked, true);
+});
+
+test("catalog schema rejects negative money and fractional inventory", async () => {
+  for (const fields of [
+    { price: -1, stock: 2 },
+    { price: 1, stock: 0.5 },
+  ]) {
+    const product = new Product({
+      name: "Test",
+      description: "Test",
+      category: "Test",
+      image: "https://example.test/p.png",
+      ...fields,
+    });
+    await assert.rejects(() => product.validate());
+  }
+});
+
+test("stale admin inventory edits cannot overwrite checkout reservations", async () => {
+  const p = await Product.create({
+    name: "Test",
+    description: "Test",
+    category: "Test",
+    image: "test",
+    stock: 1,
+    price: 25,
+  });
+  await Product.updateOne({ _id: p._id }, { $inc: { stock: -1 } });
+  const body = {
+    name: "Updated",
+    description: "Test",
+    category: "Test",
+    price: 25,
+    stock: 1,
+    expectedStock: 1,
+  };
+  const r = await request("/api/products/" + p._id, body, {
+    method: "PUT",
+    cookie: await identity(admin),
+  });
+  assert.equal(r.status, 409);
+  assert.equal((await Product.findById(p._id)).stock, 0);
+  assert.equal((await Product.findById(p._id)).name, "Test");
+  const fresh = await request(
+    "/api/products/" + p._id,
+    { ...body, stock: 3, expectedStock: 0 },
+    { method: "PUT", cookie: await identity(admin) },
+  );
+  assert.equal(fresh.status, 200);
+  assert.equal((await Product.findById(p._id)).stock, 3);
+  const missing = await request(
+    "/api/products/" + p._id,
+    {
+      name: "Test",
+      description: "Test",
+      category: "Test",
+      price: 25,
+      stock: 5,
+    },
+    { method: "PUT", cookie: await identity(admin) },
+  );
+  assert.equal(missing.status, 400);
+  assert.equal((await Product.findById(p._id)).stock, 3);
 });

@@ -1,7 +1,7 @@
 "use client";
-import { csrfFetch } from "@/lib/csrf";
+import { beginCheckout } from "@/lib/checkout";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart, Trash2 } from "lucide-react";
 import {
@@ -20,9 +20,12 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { API_URL } from "@/lib/config";
+
 export default function CartPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+  const checkoutPending = useRef(false);
 
   const loadCart = () => {
     const items = getCart();
@@ -37,7 +40,7 @@ export default function CartPage() {
 
   const subtotal = cartItems.reduce(
     (acc, item) => acc + item.price * item.quantity,
-    0
+    0,
   );
   const shipping = subtotal > 0 ? 5.99 : 0;
   const total = subtotal + shipping;
@@ -67,21 +70,22 @@ export default function CartPage() {
     };
   }, []);
   const handleCheckout = async () => {
-    const res = await csrfFetch(`${API_URL}/api/stripe/create-checkout-session`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: cartItems }),
-    });
-
-    const data = await res.json();
-
-    if (!data?.url) {
-      console.error("No checkout URL returned");
-      return;
+    if (checkoutPending.current) return;
+    checkoutPending.current = true;
+    setCheckingOut(true);
+    setCheckoutError("");
+    try {
+      window.location.href = await beginCheckout(cartItems);
+    } catch (error) {
+      setCheckoutError(
+        error instanceof Error
+          ? error.message
+          : "Checkout could not start. Try again.",
+      );
+    } finally {
+      checkoutPending.current = false;
+      setCheckingOut(false);
     }
-
-    window.location.href = data.url;
   };
 
   return (
@@ -197,19 +201,28 @@ export default function CartPage() {
                     <span className="tabular-nums">${subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Shipping</span>
+                    <span>Estimated shipping</span>
                     <span className="tabular-nums">${shipping.toFixed(2)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-semibold text-foreground">
-                    <span>Total</span>
+                    <span>Estimated total</span>
                     <span className="tabular-nums">${total.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button className="w-full" onClick={handleCheckout}>
-                  Proceed to Checkout
+              <CardFooter className="flex-col gap-3">
+                {checkoutError && (
+                  <p role="alert" className="text-destructive">
+                    {checkoutError}
+                  </p>
+                )}
+                <Button
+                  className="w-full"
+                  disabled={checkingOut}
+                  onClick={handleCheckout}
+                >
+                  {checkingOut ? "Opening checkout…" : "Proceed to Checkout"}
                 </Button>
               </CardFooter>
             </Card>

@@ -1,0 +1,4 @@
+-r requirements.in
+pytest>=8,<10
+pytest-asyncio>=0.25,<2
+pip-audit>=2.9,<3

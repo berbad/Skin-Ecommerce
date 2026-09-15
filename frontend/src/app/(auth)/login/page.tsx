@@ -23,6 +23,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -41,7 +42,7 @@ export default function LoginPage() {
       const response = await csrfFetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, ...(code ? { code } : {}) }),
         credentials: "include",
       });
 
@@ -53,7 +54,7 @@ export default function LoginPage() {
       }
 
       router.push("/");
-    } catch (err) {
+    } catch {
       setError("Login failed. Please check your credentials and try again.");
     } finally {
       setIsLoading(false);
@@ -82,6 +83,7 @@ export default function LoginPage() {
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
+                  autoComplete="username"
                   type="email"
                   placeholder="your.email@example.com"
                   value={email}
@@ -102,6 +104,7 @@ export default function LoginPage() {
                 </div>
                 <Input
                   id="password"
+                  autoComplete="current-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -109,22 +112,30 @@ export default function LoginPage() {
                 />
               </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
+              <div className="space-y-2">
+                <Label htmlFor="mfa-code">Authenticator or recovery code</Label>
+                <Input
+                  id="mfa-code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.trim())}
+                  autoComplete="one-time-code"
+                  maxLength={32}
+                  aria-describedby="mfa-hint"
+                />
+                <p id="mfa-hint" className="text-sm text-muted-foreground">
+                  Required for administrators. Other customers can leave this
+                  blank.
+                </p>
+              </div>
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
             </form>
           </CardContent>
           <CardFooter className="flex justify-center">
             <p className="text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link
-                href="/register"
-                className="text-brand hover:text-brand"
-              >
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="text-brand hover:text-brand">
                 Sign up
               </Link>
             </p>

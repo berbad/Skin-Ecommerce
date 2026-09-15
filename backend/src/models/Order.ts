@@ -3,6 +3,14 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IOrder extends Document<string> {
   _id: string;
   userId: string;
+  checkoutId?: string;
+  paymentStatus: "paid" | "unverified";
+  fulfillmentStatus:
+    "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+  shippingName?: string;
+  totalCents?: number;
+  shippingCents?: number;
+  currency?: string;
   items: {
     productId: string;
     name: string;
@@ -35,19 +43,35 @@ const OrderSchema = new Schema<IOrder>(
   {
     _id: { type: String, required: true },
     userId: { type: String, index: true },
+    checkoutId: String,
+    paymentStatus: {
+      type: String,
+      enum: ["paid", "unverified"],
+      default: "unverified",
+    },
+    fulfillmentStatus: {
+      type: String,
+      enum: ["pending", "processing", "shipped", "delivered", "cancelled"],
+      default: "pending",
+    },
+    shippingName: String,
+    totalCents: Number,
+    shippingCents: Number,
+    currency: String,
     items: [
       {
         productId: { type: String, required: true },
         name: { type: String, required: true },
         quantity: { type: Number, required: true },
         price: { type: Number, required: true },
+        unitAmount: Number,
       },
     ],
     total: { type: Number, required: true },
     status: {
       type: String,
       enum: ["paid", "processing", "pending", "failed"],
-      default: "paid",
+      default: "pending",
     },
     shippingAddress: {
       line1: { type: String },
@@ -71,7 +95,7 @@ const OrderSchema = new Schema<IOrder>(
       default: [],
     },
   },
-  { _id: false, timestamps: true }
+  { _id: false, timestamps: true },
 );
 
 export default mongoose.models.Order ||

@@ -1,21 +1,15 @@
-import { Request, Response, NextFunction } from "express";
-
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-  };
-}
-
-export const isAdminMiddleware = (
+import { Response, NextFunction } from "express";
+import { AuthenticatedRequest } from "./auth.middleware";
+export function isAdminMiddleware(
   req: AuthenticatedRequest,
   res: Response,
-  next: NextFunction
-): void => {
-  if (!req.user || req.user.role !== "admin") {
-    res.status(403).json({ message: "Admin access only" });
+  next: NextFunction,
+): void {
+  if (req.user?.role !== "admin" || !req.user.mfaVerified) {
+    res
+      .status(403)
+      .json({ message: "Admin access requires multi-factor authentication" });
     return;
   }
   next();
-};
+}

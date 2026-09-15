@@ -1,42 +1,48 @@
 "use client";
 import { useState } from "react";
-import { API_URL } from "@/lib/config";
+
 export default function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<{ role: string; content: string }[]>(
-    []
+    [],
   );
 
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
   const [input, setInput] = useState("");
   const maxLength = 300;
 
   const sendMessage = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || sending) return;
+    setSending(true);
+    setError("");
 
-    const newMessages = [...messages, { role: "user", content: input }];
+    const newMessages = [...messages, { role: "user", content: input }].slice(
+      -10,
+    );
     setMessages(newMessages);
     setInput("");
 
     try {
-      const res = await fetch(`${API_URL}/chat`, {
+      const res = await fetch("/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: newMessages }),
       });
 
+      if (!res.ok) throw new Error();
       const data = await res.json();
+      if (typeof data.reply !== "string") throw new Error();
       setMessages((prev) => [
-        ...prev,
+        ...prev.slice(-19),
         { role: "assistant", content: data.reply },
       ]);
-    } catch (err) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Something went wrong. Try again later.",
-        },
-      ]);
+    } catch {
+      setError(
+        "Chat is unavailable or has reached its limit. Please try again later.",
+      );
+    } finally {
+      setSending(false);
     }
   };
 
@@ -44,6 +50,8 @@ export default function ChatWidget() {
     <>
       <button
         className="fixed bottom-4 right-4 z-50 p-3 bg-blue-600 text-white rounded-full shadow-lg"
+        aria-label="Toggle skincare chat"
+        aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
       >
         💬
@@ -73,7 +81,15 @@ export default function ChatWidget() {
             ))}
           </div>
           <div className="p-2 border-t dark:border-gray-700">
+            {error && (
+              <p role="alert" className="text-sm">
+                {error}
+              </p>
+            )}
+            {sending && <p role="status">Sending…</p>}
             <input
+              aria-label="Chat message"
+              disabled={sending}
               maxLength={maxLength}
               className="w-full px-3 py-1 rounded bg-gray-100 dark:bg-gray-800 text-sm"
               placeholder="Ask me anything..."
