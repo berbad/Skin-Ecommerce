@@ -23,3 +23,9 @@ frontend/public/images/*
 
 backend/public/images/
 frontend/public/images/
+
+# Local credentials and test/cache artifacts
+**/.env.*
+!**/.env.example
+**/.venv/
+**/.pytest_cache/
