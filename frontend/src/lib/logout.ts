@@ -1,29 +1,13 @@
 import { csrfFetch } from "@/lib/csrf";
-import axios from "./axios";
-import { API_URL } from "./config";
-
 export const logout = async () => {
-  try {
-    await csrfFetch(`${API_URL}/api/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ cart: [] }),
-    });
-  } catch (err) {
-    console.error("Logout request failed:", err);
-  } finally {
-    localStorage.clear();
-    sessionStorage.clear();
-
-    document.cookie.split(";").forEach((c) => {
-      document.cookie = c
-        .replace(/^ +/, "")
-        .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
-    });
-
-    window.location.href = "/login";
-  }
+  const response = await csrfFetch("/api/auth/logout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!response.ok)
+    throw new Error("Logout could not be confirmed. Please try again.");
+  localStorage.removeItem("cart");
+  sessionStorage.removeItem("checkout-attempt");
+  window.location.href = "/login";
 };

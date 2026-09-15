@@ -1,3 +1,4 @@
+import type { AnchorHTMLAttributes, ImgHTMLAttributes, ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -10,15 +11,27 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
-    <a href={typeof href === "string" ? href : href?.pathname ?? "#"} {...props}>
+  default: ({
+    href,
+    children,
+    ...props
+  }: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
+    href: string | { pathname?: string };
+    children: ReactNode;
+  }) => (
+    <a
+      href={typeof href === "string" ? href : (href?.pathname ?? "#")}
+      {...props}
+    >
       {children}
     </a>
   ),
 }));
 
 vi.mock("next/image", () => ({
-  default: ({ alt, ...props }: any) => <img alt={alt} {...props} />,
+  default: ({ alt, ...props }: ImgHTMLAttributes<HTMLImageElement>) => (
+    <img alt={alt} {...props} />
+  ),
 }));
 
 const getCurrentUser = vi.fn();
@@ -61,7 +74,9 @@ describe("Navbar", () => {
     });
     const { container } = render(<Navbar />);
     // avatar button renders the user's initial once the user loads
-    expect(await screen.findByRole("button", { name: "A" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "A" }),
+    ).toBeInTheDocument();
     expect(container.innerHTML).not.toContain("pink-600");
     expect(container.innerHTML).toContain("bg-brand");
   });

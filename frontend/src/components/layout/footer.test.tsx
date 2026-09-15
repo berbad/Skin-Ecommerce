@@ -1,9 +1,17 @@
+import type { AnchorHTMLAttributes, ReactNode } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { Footer } from "./footer";
 
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: any) => (
+  default: ({
+    href,
+    children,
+    ...props
+  }: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & {
+    href: string | { pathname?: string };
+    children: ReactNode;
+  }) => (
     <a
       href={typeof href === "string" ? href : (href?.pathname ?? "#")}
       {...props}

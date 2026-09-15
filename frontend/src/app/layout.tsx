@@ -13,6 +13,8 @@ const hanken = Hanken_Grotesk({
   display: "swap",
 });
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Eternal Botanic",
   description: "Premium skincare products for all skin types",
@@ -32,7 +34,7 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
-          <ChatWidget />
+          {process.env.NEXT_PUBLIC_CHAT_ENABLED === "true" && <ChatWidget />}
         </ErrorBoundary>
       </body>
     </html>

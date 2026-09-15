@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import axios from "@/lib/axios";
+import { isAxiosError } from "axios";
 import {
   DragDropContext,
   Droppable,
@@ -16,6 +17,9 @@ interface Product {
   image: string;
   description: string;
   price: number;
+  category: string;
+  stock: number;
+  featured: boolean;
   order: number;
   ingredients?: string;
   benefits?: string;
@@ -25,6 +29,7 @@ interface Product {
 export default function AdminProductList({ refresh }: { refresh: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
+  const [expectedStock, setExpectedStock] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<Partial<Product>>({});
 
   const loadProducts = async () => {
@@ -58,12 +63,14 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
 
   const startEdit = (product: Product) => {
     setEditingProductId(product._id);
+    setExpectedStock(product.stock);
     setEditForm({
       name: product.name,
       description: product.description,
       price: product.price,
-      image: product.image,
-      order: product.order,
+      category: product.category,
+      stock: product.stock,
+      featured: product.featured,
       ingredients: product.ingredients,
       benefits: product.benefits,
       howToUse: product.howToUse,
@@ -76,7 +83,7 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
   };
 
   const handleEditChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setEditForm({ ...editForm, [e.target.name]: e.target.value });
   };
@@ -87,12 +94,21 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
       await axios.put(`/products/${editingProductId}`, {
         ...editForm,
         price: Number(editForm.price),
+        expectedStock,
       });
       setEditingProductId(null);
       setEditForm({});
       await loadProducts();
-    } catch {
-      alert("Error saving product");
+    } catch (err) {
+      if (isAxiosError(err) && err.response?.status === 409) {
+        alert(
+          "Inventory changed while you were editing. Reopen the editor to reload stock before saving.",
+        );
+        cancelEdit();
+        await loadProducts();
+      } else {
+        alert("Error saving product");
+      }
     }
   };
 
@@ -101,8 +117,12 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
     try {
       await axios.delete(`/products/${id}`);
       await loadProducts();
-    } catch {
-      alert("Error deleting product");
+    } catch (err) {
+      alert(
+        isAxiosError(err) && err.response?.status === 409
+          ? err.response.data.message
+          : "Error deleting product",
+      );
     }
   };
 
@@ -153,13 +173,6 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
                             value={editForm.price || ""}
                             onChange={handleEditChange}
                             className="border p-1 w-full"
-                          />
-                          <input
-                            name="image"
-                            value={editForm.image || ""}
-                            onChange={handleEditChange}
-                            className="border p-1 w-full"
-                            placeholder="Image URL"
                           />
                           <textarea
                             name="ingredients"
@@ -248,7 +261,7 @@ export default function AdminProductList({ refresh }: { refresh: boolean }) {
                     </div>
                   )}
                 </Draggable>
-              ) : null
+              ) : null,
             )}
             {provided.placeholder}
           </div>

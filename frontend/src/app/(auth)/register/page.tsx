@@ -1,5 +1,6 @@
 "use client";
 import { csrfFetch } from "@/lib/csrf";
+import { API_URL } from "@/lib/config";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -22,10 +23,11 @@ const registerSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Must contain at least one number"),
+    .min(12, "Password must be at least 12 characters")
+    .refine(
+      (value) => new TextEncoder().encode(value).length <= 72,
+      "Password must fit within 72 bytes",
+    ),
 });
 
 export default function RegisterPage() {
@@ -34,8 +36,6 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +76,7 @@ export default function RegisterPage() {
     if (!password) return { strength: 0, label: "", color: "" };
 
     let strength = 0;
-    if (password.length >= 8) strength++;
+    if (password.length >= 12) strength++;
     if (/[A-Z]/.test(password)) strength++;
     if (/[a-z]/.test(password)) strength++;
     if (/[0-9]/.test(password)) strength++;
@@ -177,9 +177,9 @@ export default function RegisterPage() {
                   <p className="font-medium">Password must contain:</p>
                   <ul className="space-y-1">
                     <li
-                      className={password.length >= 8 ? "text-green-600" : ""}
+                      className={password.length >= 12 ? "text-green-600" : ""}
                     >
-                      {password.length >= 8 ? "✓" : "○"} At least 8 characters
+                      {password.length >= 12 ? "✓" : "○"} At least 12 characters
                     </li>
                     <li
                       className={/[A-Z]/.test(password) ? "text-green-600" : ""}
@@ -200,11 +200,7 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Creating account..." : "Register"}
               </Button>
             </form>

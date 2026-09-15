@@ -34,7 +34,7 @@ export default function ContactPage() {
   }, [sent]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -92,10 +92,10 @@ export default function ContactPage() {
 
       setSent(true);
       setForm({ name: "", email: "", message: "", hp: "" });
-    } catch (err: any) {
+    } catch (err) {
       setErrors({
         form:
-          err?.name === "AbortError"
+          err instanceof Error && err.name === "AbortError"
             ? "Request timed out. Try again."
             : "Network error. Try again.",
       });
@@ -107,7 +107,9 @@ export default function ContactPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-16">
-      <h1 className="text-4xl font-semibold tracking-tight mb-6 text-foreground">Contact Us</h1>
+      <h1 className="text-4xl font-semibold tracking-tight mb-6 text-foreground">
+        Contact Us
+      </h1>
       <p className="text-muted-foreground mb-8">
         Questions or feedback? Send a message and we’ll respond shortly.
       </p>
@@ -216,10 +218,7 @@ export default function ContactPage() {
             </p>
           )}
 
-          <Button
-            type="submit"
-            disabled={loading}
-          >
+          <Button type="submit" disabled={loading}>
             {loading ? "Sending..." : "Send Message"}
           </Button>
         </form>

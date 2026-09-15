@@ -11,8 +11,8 @@ export function CartCountBubble() {
         const stored = localStorage.getItem("cart");
         const cart = stored ? JSON.parse(stored) : [];
         const totalItems = cart.reduce(
-          (sum: number, item: any) => sum + item.quantity,
-          0
+          (sum: number, item: { quantity: number }) => sum + item.quantity,
+          0,
         );
         setCount(totalItems);
       } catch (err) {

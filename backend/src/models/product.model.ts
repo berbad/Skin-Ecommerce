@@ -20,10 +20,22 @@ const ProductSchema = new Schema<IProduct>(
   {
     name: { type: String, required: true },
     description: { type: String, required: true },
-    price: { type: Number, required: true },
+    price: {
+      type: Number,
+      required: true,
+      min: 0.01,
+      max: 999999.99,
+      validate: Number.isFinite,
+    },
     category: { type: String, required: true },
     image: { type: String, required: true },
-    stock: { type: Number, required: true },
+    stock: {
+      type: Number,
+      required: true,
+      min: 0,
+      max: 1000000,
+      validate: Number.isInteger,
+    },
     rating: { type: Number, default: 0 },
     numReviews: { type: Number, default: 0 },
     order: { type: Number, default: 0 },
@@ -32,7 +44,7 @@ const ProductSchema = new Schema<IProduct>(
     benefits: { type: String },
     howToUse: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 ProductSchema.index({ category: 1, order: 1 });

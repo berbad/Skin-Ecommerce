@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import axios from "@/lib/axios";
+import { isAxiosError } from "axios";
 import { Pencil, Trash2, Plus, ImageIcon } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { normalizeImageSrc } from "@/lib/images";
@@ -52,6 +53,7 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<Product>>(emptyForm);
   const [editId, setEditId] = useState<string | null>(null);
+  const [expectedStock, setExpectedStock] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const imageUrlRef = useRef<string | null>(null);
 
@@ -72,6 +74,7 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
     if (row) {
       const id = row._id ?? row.id ?? "";
       setEditId(id);
+      setExpectedStock(row.stock);
       setForm({
         _id: id,
         name: row.name,
@@ -87,6 +90,7 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
       });
     } else {
       setEditId(null);
+      setExpectedStock(null);
       setForm(emptyForm);
     }
     setOpen(true);
@@ -124,6 +128,7 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
       const config = { headers: {} };
 
       if (editId) {
+        formData.append("expectedStock", String(expectedStock));
         await axios.put(`/products/${editId}`, formData, config);
       } else {
         await axios.post("/products", formData, config);
@@ -131,10 +136,19 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
 
       handleClose();
       loadProducts();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Save failed", err);
-      if (err.response?.status === 401 || err.response?.status === 403) {
+      if (
+        isAxiosError(err) &&
+        (err.response?.status === 401 || err.response?.status === 403)
+      ) {
         alert("Session expired. Please log in again.");
+      } else if (isAxiosError(err) && err.response?.status === 409) {
+        alert(
+          "Inventory changed while you were editing. Reopen the editor to reload stock before saving.",
+        );
+        handleClose();
+        await loadProducts();
       } else {
         alert("Failed to save product. Please try again.");
       }
@@ -150,14 +164,16 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
     try {
       await axios.delete(`/products/${id}`);
       loadProducts();
-    } catch {
-      alert("Error deleting product");
+    } catch (err) {
+      alert(
+        isAxiosError(err) && err.response?.status === 409
+          ? err.response.data.message
+          : "Error deleting product",
+      );
     }
   };
 
-  const handleImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
@@ -292,7 +308,10 @@ export default function AdminProductTable({ refresh }: { refresh?: boolean }) {
         </table>
       </div>
 
-      <Sheet open={open} onOpenChange={(o) => (o ? setOpen(true) : handleClose())}>
+      <Sheet
+        open={open}
+        onOpenChange={(o) => (o ? setOpen(true) : handleClose())}
+      >
         <SheetContent
           side="right"
           className="w-full overflow-y-auto sm:max-w-md"

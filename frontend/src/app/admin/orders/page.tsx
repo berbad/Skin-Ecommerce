@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { StoreOrder } from "@/lib/order-types";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import axios from "@/lib/axios";
@@ -9,7 +10,7 @@ import { Card } from "@/components/ui/card";
 export default function AdminOrdersPage() {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "admin")) {
@@ -43,7 +44,7 @@ export default function AdminOrdersPage() {
               <div className="text-right">
                 <p className="font-bold">${order.total.toFixed(2)}</p>
                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                  {order.status}
+                  {order.fulfillmentStatus || order.status}
                 </span>
               </div>
             </div>
@@ -74,7 +75,7 @@ export default function AdminOrdersPage() {
             <div className="mt-4">
               <p className="font-semibold text-sm mb-2">Items:</p>
               <ul className="text-sm space-y-1">
-                {order.items.map((item: any, i: number) => (
+                {order.items.map((item, i: number) => (
                   <li key={i}>
                     {item.name} × {item.quantity} — $
                     {(item.price * item.quantity).toFixed(2)}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
+import { isAxiosError } from "axios";
 
 interface EditProductModalProps {
   productId: string;
@@ -21,6 +22,7 @@ export default function EditProductModal({
     category: "",
     stock: "",
   });
+  const [expectedStock, setExpectedStock] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
@@ -29,6 +31,7 @@ export default function EditProductModal({
     setVisible(true);
     axios.get(`/products/${productId}`).then((res) => {
       const { name, description, price, category, stock } = res.data.product;
+      setExpectedStock(stock);
       setForm({
         name,
         description,
@@ -40,7 +43,7 @@ export default function EditProductModal({
   }, [productId]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -54,11 +57,16 @@ export default function EditProductModal({
         ...form,
         price: parseFloat(form.price),
         stock: parseInt(form.stock),
+        expectedStock,
       });
       onSave();
       handleClose();
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Failed to save product");
+    } catch (err) {
+      setError(
+        isAxiosError(err)
+          ? err.response?.data?.message || "Failed to save product"
+          : "Failed to save product",
+      );
     } finally {
       setLoading(false);
     }

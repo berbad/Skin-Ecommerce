@@ -1,225 +1,139 @@
-import express, { Request, Response } from "express";
+import express from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import { z } from "zod";
 import User from "../models/user.model";
 import {
   authMiddleware,
   AuthenticatedRequest,
 } from "../middleware/auth.middleware";
 import { getProfile, updateProfile } from "../controllers/auth.controller";
-import { body, validationResult } from "express-validator";
-
+import {
+  emailSchema,
+  loginPasswordSchema,
+  passwordSchema,
+} from "../security/validation";
+import { createSession, revokeSession } from "../services/sessions";
+import { consumeMfa } from "../security/mfa";
+import accountSecurityRoutes from "./account-security.routes";
 const router = express.Router();
-
-if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET is not set in .env");
-}
-const JWT_SECRET = process.env.JWT_SECRET;
-
-const getCookieOptions = () => {
-  const isProduction = process.env.NODE_ENV === "production";
-
-  return {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none" as const,
-    path: "/",
-  };
-};
-
-// Login
-router.post(
-  "/login",
-  body("email").isString().bail().isEmail().normalizeEmail(),
-  body("password").isString().bail().notEmpty().withMessage("Password is required"),
-  async (req: Request, res: Response): Promise<void> => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({
-        success: false,
-        message: errors.array()[0].msg,
-      });
+router.use(accountSecurityRoutes);
+const loginSchema = z
+  .object({
+    email: emailSchema,
+    password: loginPasswordSchema,
+    code: z.string().max(64).optional(),
+  })
+  .strict();
+const registerSchema = z
+  .object({
+    email: emailSchema,
+    password: passwordSchema,
+    name: z.string().trim().min(1).max(100),
+  })
+  .strict();
+// A real bcrypt hash makes unknown-user attempts perform the same password work.
+const dummyHash = bcrypt.hashSync("unused-dummy-password", 12);
+router.post("/login", async (req, res, next) => {
+  try {
+    const input = loginSchema.safeParse(req.body);
+    if (!input.success) {
+      res.status(400).json({ message: "Invalid credentials" });
       return;
     }
-
-    try {
-      const { email, password } = req.body;
-
-      if (typeof email !== "string" || typeof password !== "string") { res.status(400).json({message: "Invalid credentials"}); return; }
-      const user = await User.findOne({ email: { $eq: email } });
-      const isMatch = user && (await bcrypt.compare(password, user.password));
-
-      if (!user || !isMatch) {
-        res.status(401).json({
-          success: false,
-          message: "Invalid credentials",
+    const user = await User.findOne({ email: { $eq: input.data.email } });
+    const valid = await bcrypt.compare(
+      input.data.password,
+      user?.password || dummyHash,
+    );
+    if (!user || !valid || user.disabled) {
+      res.status(401).json({ message: "Invalid credentials" });
+      return;
+    }
+    const needsMfa = user.role === "admin" || !!user.mfaSecret;
+    if (needsMfa && !(await consumeMfa(user, input.data.code))) {
+      res
+        .status(403)
+        .json({
+          code: "MFA_REQUIRED",
+          message:
+            "Enter a valid authenticator or recovery code. Unenrolled administrators must complete secure enrollment.",
         });
-        return;
-      }
-
-      const token = jwt.sign(
-        {
-          id: user._id,
-          email: user.email,
-          role: user.role,
-          name: user.name,
-        },
-        JWT_SECRET as string,
-        { expiresIn: "7d" }
-      );
-
-      const cookieOptions = getCookieOptions();
-      res.cookie("token", token, {
-        ...cookieOptions,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      console.log("Cookie set with options:", cookieOptions);
-
-
-      res.status(200).json({
+      return;
+    }
+    await createSession(user, res, needsMfa);
+    res
+      .status(200)
+      .json({
         success: true,
-        message: "Logged in successfully",
         user: {
-          id: user._id,
+          id: String(user._id),
           email: user.email,
           name: user.name,
           role: user.role,
           cart: user.cart,
         },
       });
-    } catch (error) {
-      console.error("Login error:");
-      res.status(500).json({
-        success: false,
-        message: "Error logging in",
-      });
-    }
+  } catch (err) {
+    next(err);
   }
-);
-
-// Logout
-router.post(
-  "/logout",
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const cookieOptions = {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none" as const,
-        path: "/",
-      };
-
-      res.clearCookie("token", cookieOptions);
-
-      res.clearCookie("token");
-
-      console.log("Cookie cleared");
-      console.log("User logged out:", req.user?.email || "guest");
-
-      res.status(200).json({
-        success: true,
-        message: "Logged out successfully",
-      });
-    } catch (err) {
-      console.error("Logout error:");
-
-      res.clearCookie("token", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none" as const,
-        path: "/",
-      });
-      res.clearCookie("token");
-
-      res.status(200).json({
-        success: true,
-        message: "Logged out",
-      });
-    }
+});
+router.post("/logout", async (req, res, next) => {
+  try {
+    await revokeSession(req, res);
+    res.json({ success: true, message: "Logged out" });
+  } catch (err) {
+    next(err);
   }
-);
-
-// Register
-router.post(
-  "/register",
-  body("email").isString().bail().isEmail().normalizeEmail(),
-  body("password")
-    .isString().bail()
-    .isLength({ min: 8 })
-    .withMessage("Password must be at least 8 characters")
-    .matches(/[A-Z]/)
-    .withMessage("Password must contain at least one uppercase letter")
-    .matches(/[a-z]/)
-    .withMessage("Password must contain at least one lowercase letter")
-    .matches(/[0-9]/)
-    .withMessage("Password must contain at least one number"),
-  body("name").isString().bail().trim().isLength({ min: 1, max: 100 }),
-  async (req: Request, res: Response): Promise<void> => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      res.status(400).json({
-        success: false,
-        message: errors.array()[0].msg,
-      });
+});
+router.post("/register", async (req, res, next) => {
+  try {
+    const input = registerSchema.safeParse(req.body);
+    if (!input.success) {
+      res
+        .status(400)
+        .json({
+          message:
+            "Use a valid email, name, and password of at least 12 characters (maximum 72 bytes)",
+        });
       return;
     }
-
-    try {
-      const { email, password, name } = req.body;
-
-      if (typeof email !== "string" || typeof password !== "string" || typeof name !== "string") { res.status(400).json({message: "Invalid registration"}); return; }
-      const existingUser = await User.findOne({ email: { $eq: email } });
-      if (existingUser) {
-        res
-          .status(400)
-          .json({ success: false, message: "Email already in use" });
-        return;
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const newUser = await User.create({
-        email,
-        name,
-        password: hashedPassword,
-        role: "user",
-      });
-
-      res.status(201).json({
-        success: true,
-        message: "User registered successfully",
-        user: { id: newUser._id, email: newUser.email, name: newUser.name },
-      });
-    } catch (error) {
-      console.error("Registration error:");
-      res.status(500).json({
-        success: false,
-        message: "Error registering user",
-      });
+    const { email, name, password } = input.data;
+    if (await User.exists({ email })) {
+      res
+        .status(400)
+        .json({ message: "Unable to register with these details" });
+      return;
     }
-  }
-);
-
-// Auth endpoint test
-router.get(
-  "/test-auth",
-  authMiddleware,
-  async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    res.status(200).json({
-      success: true,
-      message: "Authentication working!",
-      user: {
-        id: req.user?.id,
-        email: req.user?.email,
-        role: req.user?.role,
-        name: req.user?.name,
-      },
-
+    const user = await User.create({
+      email,
+      name,
+      password: await bcrypt.hash(password, 12),
+      role: "user",
     });
+    res
+      .status(201)
+      .json({ success: true, user: { id: String(user._id), email, name } });
+  } catch (err) {
+    if ((err as { code?: number }).code === 11000) {
+      res
+        .status(400)
+        .json({ message: "Unable to register with these details" });
+      return;
+    }
+    next(err);
   }
+});
+router.get("/test-auth", authMiddleware, (req: AuthenticatedRequest, res) =>
+  res.json({
+    success: true,
+    user: {
+      id: req.user!.id,
+      email: req.user!.email,
+      role: req.user!.role,
+      name: req.user!.name,
+    },
+  }),
 );
-
 router.get("/profile", authMiddleware, getProfile);
 router.put("/profile", authMiddleware, updateProfile);
-
 export default router;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { StoreOrder } from "@/lib/order-types";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import { getOrders } from "@/lib/getOrders";
@@ -10,18 +11,23 @@ import { Button } from "@/components/ui/button";
 export default function OrdersPage() {
   const router = useRouter();
   const { user, loading } = useCurrentUser();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
     if (user) {
-      getOrders().then((data) => {
-        setOrders(data);
-        setLoadingOrders(false);
-      });
+      getOrders()
+        .then((data) => {
+          setOrders(data);
+        })
+        .catch(() =>
+          setError("Could not load your orders. Please reload to try again."),
+        )
+        .finally(() => setLoadingOrders(false));
     }
   }, [user, loading, router]);
 
@@ -64,10 +70,12 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {orders.length === 0 ? (
+      {error ? (
+        <p role="alert">{error}</p>
+      ) : orders.length === 0 ? (
         <Card className="flex flex-col items-center rounded-2xl border-border p-10 text-center">
           <p className="mb-6 text-muted-foreground">
-            You haven't placed any orders yet.
+            You haven&apos;t placed any orders yet.
           </p>
           <Button onClick={() => router.push("/products")}>
             Browse products
@@ -89,11 +97,15 @@ export default function OrdersPage() {
                   <div className="mt-2">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badgeClass(
-                        order.status
+                        order.fulfillmentStatus || order.status,
                       )}`}
                     >
-                      {String(order.status).charAt(0).toUpperCase() +
-                        String(order.status).slice(1)}
+                      {String(order.fulfillmentStatus || order.status)
+                        .charAt(0)
+                        .toUpperCase() +
+                        String(order.fulfillmentStatus || order.status).slice(
+                          1,
+                        )}
                     </span>
                   </div>
                 </div>
@@ -106,7 +118,7 @@ export default function OrdersPage() {
               </div>
 
               <ul className="mt-4 text-sm space-y-1">
-                {order.items.map((item: any, index: number) => (
+                {order.items.map((item, index: number) => (
                   <li key={index} className="flex justify-between">
                     <span className="truncate">
                       {item.name} × {item.quantity}

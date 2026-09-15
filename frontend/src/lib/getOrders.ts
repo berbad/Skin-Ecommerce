@@ -1,20 +1,10 @@
-export async function getOrders() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-
-  const res = await fetch(`${API_URL}/api/orders`, {
+import type { StoreOrder } from "./order-types";
+export async function getOrders(): Promise<StoreOrder[]> {
+  const response = await fetch("/api/orders", {
     credentials: "include",
+    cache: "no-store",
   });
-  try {
-    const res = await fetch(`${API_URL}/api/orders`, {
-      credentials: "include",
-    });
-
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    return data.orders || [];
-  } catch (err) {
-    console.error("Error fetching orders:", err);
-    return [];
-  }
+  if (!response.ok) throw new Error("Unable to load orders");
+  const data = await response.json();
+  return Array.isArray(data.orders) ? data.orders : [];
 }

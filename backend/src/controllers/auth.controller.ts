@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import User from "../models/user.model";
+import { profileSchema } from "../security/validation";
 
 type AddressDto = {
   line1?: string;
@@ -13,7 +14,7 @@ type AddressDto = {
 
 export const getProfile = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -48,7 +49,7 @@ export const getProfile = async (
 
 export const updateProfile = async (
   req: AuthenticatedRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     if (!req.user) {
@@ -62,25 +63,18 @@ export const updateProfile = async (
       return;
     }
 
-    const { name, email, address } = req.body as {
-      name?: string;
-      email?: string;
-      address?: AddressDto;
-    };
-
-    if (typeof name === "string") user.name = name;
-    if (typeof email === "string") user.email = email;
-
-    if (address && typeof address === "object") {
-      user.address = {
-        line1: address.line1 ?? user.address?.line1 ?? "",
-        line2: address.line2 ?? user.address?.line2 ?? "",
-        city: address.city ?? user.address?.city ?? "",
-        state: address.state ?? user.address?.state ?? "",
-        postalCode: address.postalCode ?? user.address?.postalCode ?? "",
-        country: address.country ?? user.address?.country ?? "United States",
-      };
+    const parsed = profileSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({
+          message: "Invalid profile. Change email through verification.",
+        });
+      return;
     }
+    const { name, address } = parsed.data;
+    if (name !== undefined) user.name = name;
+    if (address !== undefined) user.address = address;
 
     await user.save();
 

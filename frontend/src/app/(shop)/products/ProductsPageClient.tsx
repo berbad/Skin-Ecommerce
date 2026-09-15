@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import axios from "@/lib/axios";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -45,7 +50,16 @@ export default function ProductsPageClient() {
     loadProducts();
   }, []);
 
-  const categories = Array.from(new Set(products.map((p) => p.category))).sort();
+  const categories = Array.from(
+    new Set(
+      products
+        .map((p) => p.category)
+        .filter(
+          (category): category is string =>
+            typeof category === "string" && category.length > 0,
+        ),
+    ),
+  ).sort();
 
   let filtered =
     selectedCategory === "All"
@@ -71,7 +85,7 @@ export default function ProductsPageClient() {
         "block w-full rounded-md px-3 py-1.5 text-left text-sm transition-colors",
         selectedCategory === value
           ? "bg-brand-soft font-medium text-brand"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
       )}
     >
       {label}
@@ -87,7 +101,11 @@ export default function ProductsPageClient() {
         <div className="space-y-1">
           {filterButton("All products", "All", "/products")}
           {categories.map((cat) =>
-            filterButton(cat, cat, `/products?category=${encodeURIComponent(cat)}`)
+            filterButton(
+              cat,
+              cat,
+              `/products?category=${encodeURIComponent(cat)}`,
+            ),
           )}
         </div>
       </aside>

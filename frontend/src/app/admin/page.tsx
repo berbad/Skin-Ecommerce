@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "@/lib/useCurrentUser";
 import AdminProductTable from "@/components/product/AdminProductTable";
@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function AdminPage() {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
-  const [refresh, setRefresh] = useState(false);
+  const refresh = false;
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "admin")) {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Leaf, FlaskConical, ShieldCheck, Sparkles } from "lucide-react";
 
@@ -101,12 +102,12 @@ export default function AboutPage() {
       </section>
 
       <footer className="mt-12 text-center">
-        <a
+        <Link
           href="/products"
           className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 text-primary-foreground text-sm font-medium transition hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring/50"
         >
           Explore products
-        </a>
+        </Link>
       </footer>
     </main>
   );

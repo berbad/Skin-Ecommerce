@@ -4,14 +4,24 @@ import ProductController from "../controllers/product.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 import { isAdminMiddleware } from "../middleware/isAdmin.middleware";
 import { storage } from "../config/cloudinary";
+import { authenticatedRateLimit } from "../security/authenticated-rate-limit";
 
 const router = express.Router();
+const uploadRateLimit = authenticatedRateLimit("product-upload", 20);
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 1,
+    fields: 10,
+    parts: 11,
+    fieldSize: 16 * 1024,
+    fieldNameSize: 100,
+  },
   fileFilter: (req, file, callback) => {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) return callback(new Error("Unsupported image type"));
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype))
+      return callback(new Error("Unsupported image type"));
     callback(null, true);
   },
 });
@@ -23,27 +33,29 @@ router.post(
   "/",
   authMiddleware,
   isAdminMiddleware,
+  uploadRateLimit,
   upload.single("image"),
-  ProductController.createProduct
+  ProductController.createProduct,
 );
 router.put(
   "/:id",
   authMiddleware,
   isAdminMiddleware,
+  uploadRateLimit,
   upload.single("image"),
-  ProductController.updateProduct
+  ProductController.updateProduct,
 );
 router.patch(
   "/rearrange",
   authMiddleware,
   isAdminMiddleware,
-  ProductController.rearrangeProducts
+  ProductController.rearrangeProducts,
 );
 router.delete(
   "/:id",
   authMiddleware,
   isAdminMiddleware,
-  ProductController.deleteProduct
+  ProductController.deleteProduct,
 );
 
 export default router;
